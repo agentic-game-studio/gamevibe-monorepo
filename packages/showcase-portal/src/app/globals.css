@@ -298,6 +298,37 @@ h1, h2, h3, h4, h5, h6 {
   outline: none;
   ring: 2px;
   ring-offset: 2px;
+  ring-color: oklch(var(--primary));
+}
+
+/* Focus visible styles for accessibility */
+:focus-visible {
+  outline: 2px solid oklch(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Ensure focus is visible on all interactive elements */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid oklch(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Skip link focus styles */
+.sr-only:focus {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 1rem;
+  text-align: center;
+  background: oklch(var(--primary));
+  color: oklch(var(--primary-foreground));
+  font-weight: 600;
+  z-index: 50;
 }
 
 .btn:disabled {
@@ -377,6 +408,18 @@ h1, h2, h3, h4, h5, h6 {
   pointer-events: none;
   opacity: 0.03;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* Reduced motion support for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* AI glow effect */

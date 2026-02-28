@@ -5,6 +5,15 @@ import Link from 'next/link';
 import { FiArrowRight, FiZap } from 'react-icons/fi';
 import { FaDiscord } from 'react-icons/fa';
 
+// Deterministic floating element positions to avoid hydration mismatch
+const floatingElements = [
+  { x: 150, y: 120, size: 256 },
+  { x: 900, y: 200, size: 192 },
+  { x: 1600, y: 100, size: 224 },
+  { x: 500, y: 500, size: 288 },
+  { x: 1400, y: 450, size: 176 },
+];
+
 export function CallToAction() {
   return (
     <section className="relative overflow-hidden py-20 lg:py-32">
@@ -15,17 +24,21 @@ export function CallToAction() {
 
       {/* Floating Elements */}
       <div className="absolute inset-0 overflow-hidden">
-        {[...Array(5)].map((_, i) => (
+        {floatingElements.map((el, i) => (
           <motion.div
             key={i}
-            className="absolute h-64 w-64 rounded-full bg-white/5"
+            className="absolute rounded-full bg-white/5"
+            style={{
+              width: el.size,
+              height: el.size,
+            }}
             initial={{
-              x: Math.random() * 1920,
-              y: Math.random() * 1080,
+              x: el.x,
+              y: el.y,
             }}
             animate={{
-              x: Math.random() * 1920,
-              y: Math.random() * 1080,
+              x: [el.x, el.x + 50, el.x - 30, el.x],
+              y: [el.y, el.y - 40, el.y + 20, el.y],
             }}
             transition={{
               duration: 20 + i * 5,
@@ -65,7 +78,7 @@ export function CallToAction() {
           {/* Buttons */}
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
-              href="https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID"
+              href={`https://discord.com/oauth2/authorize?client_id=${process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || 'YOUR_CLIENT_ID'}`}
               target="_blank"
               rel="noopener noreferrer"
               className="group inline-flex items-center gap-2 rounded-lg bg-white px-8 py-4 text-base font-semibold text-primary-600 transition-all duration-200 hover:bg-gray-100"

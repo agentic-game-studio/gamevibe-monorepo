@@ -69,7 +69,7 @@ export function Header() {
 
           {/* Add to Discord */}
           <Link
-            href="https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID"
+            href={`https://discord.com/oauth2/authorize?client_id=${process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || 'YOUR_CLIENT_ID'}`}
             target="_blank"
             rel="noopener noreferrer"
             className="btn border-2 border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white dark:border-primary-400 dark:text-primary-400 dark:hover:bg-primary-400 dark:hover:text-gray-900"
@@ -139,7 +139,7 @@ export function Header() {
                 })}
 
                 <Link
-                  href="https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID"
+                  href={`https://discord.com/oauth2/authorize?client_id=${process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || 'YOUR_CLIENT_ID'}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn btn-outline mt-2 w-full"

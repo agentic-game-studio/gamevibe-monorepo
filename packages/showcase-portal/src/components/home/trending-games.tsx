@@ -4,9 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiPlay, FiShare2, FiTrendingUp, FiLoader } from 'react-icons/fi';
+import { FiPlay, FiShare2, FiTrendingUp } from 'react-icons/fi';
 import { apiClient, type TrendingGame } from '@/lib/api-client';
 import { clsx } from 'clsx';
+import { GameCardSkeleton } from '@/components/skeleton';
 
 const gameTypeColors: Record<string, string> = {
   PLATFORMER: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
@@ -131,8 +132,19 @@ export function TrendingGames() {
     return (
       <section className="py-20 lg:py-24">
         <div className="container">
-          <div className="flex items-center justify-center">
-            <FiLoader className="h-8 w-8 animate-spin text-primary-600" />
+          <div className="mb-12 text-center">
+            <h2 className="mb-4 text-3xl font-bold text-gray-900 dark:text-white lg:text-4xl">
+              🔥 Trending Games
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-300">
+              The hottest games spreading across Discord servers
+            </p>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {[...Array(8)].map((_, i) => (
+              <GameCardSkeleton key={i} />
+            ))}
           </div>
         </div>
       </section>

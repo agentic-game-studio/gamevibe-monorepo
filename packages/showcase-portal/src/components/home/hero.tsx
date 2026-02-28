@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { FiPlay, FiArrowRight, FiZap, FiUsers, FiTrendingUp } from 'react-icons/fi';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 const stats = [
   { label: 'Games Created', value: '50,000+', icon: FiPlay },
@@ -19,16 +19,36 @@ const floatingGames = [
   { id: 5, title: 'RPG Adventure', type: 'RPG', color: 'from-indigo-400 to-purple-400' },
 ];
 
+// Deterministic positions to avoid hydration mismatch
+const deterministicPositions = [
+  { x: 200, y: 150 },
+  { x: 850, y: 80 },
+  { x: 1600, y: 200 },
+  { x: 400, y: 400 },
+  { x: 1200, y: 350 },
+];
+
 export function Hero() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
     };
 
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // Memoize floating game positions to ensure consistency
+  const gamePositions = useMemo(() => {
+    return floatingGames.map((game, index) => ({
+      ...game,
+      initialX: deterministicPositions[index].x,
+      initialY: deterministicPositions[index].y,
+    }));
   }, []);
 
   return (
@@ -40,17 +60,17 @@ export function Hero() {
 
       {/* Floating Game Cards */}
       <div className="absolute inset-0 overflow-hidden">
-        {floatingGames.map((game, index) => (
+        {gamePositions.map((game, index) => (
           <motion.div
             key={game.id}
             className="absolute"
             initial={{
-              x: Math.random() * 1920,
-              y: Math.random() * 600,
+              x: game.initialX,
+              y: game.initialY,
             }}
             animate={{
-              x: mousePosition.x * 0.02 * (index % 2 === 0 ? 1 : -1),
-              y: mousePosition.y * 0.02 * (index % 2 === 0 ? -1 : 1),
+              x: isMounted ? mousePosition.x * 0.02 * (index % 2 === 0 ? 1 : -1) : game.initialX,
+              y: isMounted ? mousePosition.y * 0.02 * (index % 2 === 0 ? -1 : 1) : game.initialY,
             }}
             transition={{
               type: 'spring',
@@ -120,7 +140,7 @@ export function Hero() {
               Explore Games
             </Link>
             <Link
-              href="https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID"
+              href={`https://discord.com/oauth2/authorize?client_id=${process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || 'YOUR_CLIENT_ID'}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-outline px-8 py-3 text-base"

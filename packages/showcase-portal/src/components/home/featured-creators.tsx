@@ -4,9 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiAward, FiPlay, FiDollarSign, FiLoader, FiAward as FiTrophy } from 'react-icons/fi';
+import { FiPlay, FiDollarSign, FiAward as FiTrophy } from 'react-icons/fi';
 import { apiClient, type Creator } from '@/lib/api-client';
 import { clsx } from 'clsx';
+import { CreatorCardSkeleton } from '@/components/skeleton';
 
 const tierStyles = {
   BRONZE: {
@@ -154,8 +155,19 @@ export function FeaturedCreators() {
     return (
       <section className="bg-gray-50 py-20 dark:bg-gray-900/50 lg:py-24">
         <div className="container">
-          <div className="flex items-center justify-center">
-            <FiLoader className="h-8 w-8 animate-spin text-primary-600" />
+          <div className="mb-12 text-center">
+            <h2 className="mb-4 text-3xl font-bold text-gray-900 dark:text-white lg:text-4xl">
+              ⭐ Featured Creators
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-300">
+              Top game creators earning rewards through viral growth
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
+              <CreatorCardSkeleton key={i} />
+            ))}
           </div>
         </div>
       </section>
