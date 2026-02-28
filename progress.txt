@@ -1,0 +1,6 @@
+# GameVibe AI Progress Log
+
+## Codebase Patterns
+- MiniMax API uses `x-api-key` header (not Bearer), endpoint: `https://api.minimax.io/anthropic/v1/messages`
+- Tool calling: send `tools` in request body, parse `tool_use` from response
+- All packages use ES modules - imports must include `.js` extensions
