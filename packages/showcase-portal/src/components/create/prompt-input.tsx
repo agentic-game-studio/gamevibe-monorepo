@@ -6,10 +6,22 @@ import { FiZap, FiArrowRight, FiCpu } from 'react-icons/fi';
 import { useGenerationStore } from '@/lib/generation-store';
 
 const examplePrompts = [
-  { text: 'A space shooter game with power-ups', icon: '🚀' },
-  { text: 'Endless runner with obstacles and coins', icon: '🏃' },
-  { text: 'Tower defense with different towers', icon: '🏰' },
-  { text: 'Puzzle game with match-3 mechanics', icon: '🧩' },
+  // Action
+  { text: 'A space shooter game with power-ups', icon: '🚀', category: 'action' },
+  { text: 'Fast-paced beat em up with combos', icon: '👊', category: 'action' },
+  { text: 'Platformer with wall jumping', icon: '🏃', category: 'action' },
+  // Puzzle
+  { text: 'Puzzle game with match-3 mechanics', icon: '🧩', category: 'puzzle' },
+  { text: 'Sudoku puzzle game', icon: '🔢', category: 'puzzle' },
+  { text: 'Word search puzzle game', icon: '📝', category: 'puzzle' },
+  // Strategy
+  { text: 'Tower defense with different towers', icon: '🏰', category: 'strategy' },
+  { text: 'Turn-based strategy game', icon: '♟️', category: 'strategy' },
+  { text: 'Card battle game with deck building', icon: '🃏', category: 'strategy' },
+  // Adventure
+  { text: 'Top-down dungeon crawler', icon: '🗡️', category: 'adventure' },
+  { text: 'Point and click adventure', icon: '🔍', category: 'adventure' },
+  { text: 'Endless runner with obstacles and coins', icon: '🏃', category: 'adventure' },
 ];
 
 export function PromptInput() {
@@ -144,33 +156,130 @@ export function PromptInput() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mt-6"
+          className="mt-8"
         >
-          <p className="text-sm text-[oklch(var(--muted-foreground))] mb-3 text-center">
-            Try one of these ideas:
+          <p className="text-sm text-[oklch(var(--muted-foreground))] mb-4 text-center">
+            Or choose a game type to get started:
           </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {examplePrompts.map((example, index) => (
-              <motion.button
-                key={index}
-                onClick={() => setPrompt(example.text)}
-                className="
-                  flex items-center gap-2 px-4 py-2 rounded-full
-                  bg-[oklch(var(--accent))] text-sm
-                  hover:bg-primary-100 dark:hover:bg-primary-900/30
-                  transition-colors duration-200
-                  text-[oklch(var(--accent-foreground))]
-                "
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3 + index * 0.1 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <span>{example.icon}</span>
-                <span className="font-medium">{example.text}</span>
-              </motion.button>
-            ))}
+
+          {/* Category: Action */}
+          <div className="mb-4">
+            <p className="text-xs font-semibold text-[oklch(var(--muted-foreground))] uppercase tracking-wider mb-2 ml-1">
+              Action
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {examplePrompts.filter(p => p.category === 'action').map((example, index) => (
+                <motion.button
+                  key={index}
+                  onClick={() => setPrompt(example.text)}
+                  className="
+                    flex items-center gap-2 px-3 py-2 rounded-lg
+                    bg-red-50 dark:bg-red-950/30 text-sm
+                    hover:bg-red-100 dark:hover:bg-red-900/50
+                    transition-colors duration-200
+                    text-red-700 dark:text-red-400
+                  "
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3 + index * 0.05 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span>{example.icon}</span>
+                  <span className="font-medium">{example.text}</span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Category: Puzzle */}
+          <div className="mb-4">
+            <p className="text-xs font-semibold text-[oklch(var(--muted-foreground))] uppercase tracking-wider mb-2 ml-1">
+              Puzzle
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {examplePrompts.filter(p => p.category === 'puzzle').map((example, index) => (
+                <motion.button
+                  key={index}
+                  onClick={() => setPrompt(example.text)}
+                  className="
+                    flex items-center gap-2 px-3 py-2 rounded-lg
+                    bg-purple-50 dark:bg-purple-950/30 text-sm
+                    hover:bg-purple-100 dark:hover:bg-purple-900/50
+                    transition-colors duration-200
+                    text-purple-700 dark:text-purple-400
+                  "
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.35 + index * 0.05 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span>{example.icon}</span>
+                  <span className="font-medium">{example.text}</span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Category: Strategy */}
+          <div className="mb-4">
+            <p className="text-xs font-semibold text-[oklch(var(--muted-foreground))] uppercase tracking-wider mb-2 ml-1">
+              Strategy
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {examplePrompts.filter(p => p.category === 'strategy').map((example, index) => (
+                <motion.button
+                  key={index}
+                  onClick={() => setPrompt(example.text)}
+                  className="
+                    flex items-center gap-2 px-3 py-2 rounded-lg
+                    bg-blue-50 dark:bg-blue-950/30 text-sm
+                    hover:bg-blue-100 dark:hover:bg-blue-900/50
+                    transition-colors duration-200
+                    text-blue-700 dark:text-blue-400
+                  "
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4 + index * 0.05 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span>{example.icon}</span>
+                  <span className="font-medium">{example.text}</span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Category: Adventure */}
+          <div>
+            <p className="text-xs font-semibold text-[oklch(var(--muted-foreground))] uppercase tracking-wider mb-2 ml-1">
+              Adventure
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {examplePrompts.filter(p => p.category === 'adventure').map((example, index) => (
+                <motion.button
+                  key={index}
+                  onClick={() => setPrompt(example.text)}
+                  className="
+                    flex items-center gap-2 px-3 py-2 rounded-lg
+                    bg-green-50 dark:bg-green-950/30 text-sm
+                    hover:bg-green-100 dark:hover:bg-green-900/50
+                    transition-colors duration-200
+                    text-green-700 dark:text-green-400
+                  "
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.45 + index * 0.05 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span>{example.icon}</span>
+                  <span className="font-medium">{example.text}</span>
+                </motion.button>
+              ))}
+            </div>
           </div>
         </motion.div>
       )}
