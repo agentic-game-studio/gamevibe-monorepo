@@ -11,19 +11,23 @@ import { useGenerationStore } from '@/lib/generation-store';
 
 export default function CreatePage() {
   const { status, updateStep, setStreamingContent, setComplete } = useGenerationStore();
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const runningRef = useRef(false);
 
   // Simulate AI generation process
   useEffect(() => {
-    if (status === 'analyzing') {
-      // Phase 1: Analyzing (1.5s)
-      const timer1 = setTimeout(() => {
-        updateStep('analyzing', { status: 'complete', progress: 100 });
-      }, 1500);
-      timersRef.current.push(timer1);
+    if (status !== 'analyzing' || runningRef.current) return;
+    runningRef.current = true;
 
-      // Phase 2: Generating (starts at 2s)
-      const timer2 = setTimeout(() => {
+    console.log('Starting generation simulation...');
+
+    // Phase 1: Analyzing (1.5s)
+    setTimeout(() => {
+      console.log('Analyzing complete');
+      updateStep('analyzing', { status: 'complete', progress: 100 });
+
+      // Phase 2: Generating (starts after 500ms)
+      setTimeout(() => {
+        console.log('Starting generating phase');
         const messages = [
           'Analyzing game mechanics...',
           'Creating player controls...',
@@ -33,7 +37,7 @@ export default function CreatePage() {
         ];
         let messageIndex = 0;
 
-        // Stream messages
+        // Stream messages every 500ms
         const streamInterval = setInterval(() => {
           if (messageIndex < messages.length) {
             setStreamingContent(messages[messageIndex]);
@@ -41,40 +45,27 @@ export default function CreatePage() {
           } else {
             clearInterval(streamInterval);
             updateStep('generating', { status: 'complete', progress: 100 });
-          }
-        }, 600);
-        timersRef.current.push(setTimeout(() => clearInterval(streamInterval), 5000));
+            console.log('Generating complete');
 
-        // Update generating progress
-        let progress = 0;
-        const progressInterval = setInterval(() => {
-          progress += Math.random() * 25;
-          if (progress >= 100) {
-            clearInterval(progressInterval);
-          } else {
-            updateStep('generating', { progress: Math.min(progress, 99) });
-          }
-        }, 400);
-        timersRef.current.push(setTimeout(() => clearInterval(progressInterval), 3500));
-      }, 1800);
-      timersRef.current.push(timer2);
+            // Phase 3: Building (starts after 500ms)
+            setTimeout(() => {
+              console.log('Starting building phase');
+              let progress = 0;
 
-      // Phase 3: Building (starts at 7s)
-      const timer3 = setTimeout(() => {
-        let progress = 0;
-        const progressInterval = setInterval(() => {
-          progress += Math.random() * 33;
-          if (progress >= 100) {
-            clearInterval(progressInterval);
-            updateStep('building', { status: 'complete', progress: 100 });
+              const progressInterval = setInterval(() => {
+                progress += 20;
+                if (progress >= 100) {
+                  clearInterval(progressInterval);
+                  updateStep('building', { status: 'complete', progress: 100 });
+                  console.log('Building complete');
 
-            // Set complete with mock game
-            setComplete({
-              id: 'game-' + Date.now(),
-              title: 'Space Shooter',
-              description: 'An exciting space shooter with power-ups and boss battles!',
-              type: 'SHOOTER',
-              code: `// Generated game code
+                  // Set complete
+                  setComplete({
+                    id: 'game-' + Date.now(),
+                    title: 'Space Shooter',
+                    description: 'An exciting space shooter with power-ups and boss battles!',
+                    type: 'SHOOTER',
+                    code: `// Generated game code
 class Game {
   constructor() {
     this.player = new Player();
@@ -96,21 +87,19 @@ class Game {
     this.powerUps.forEach(p => p.draw(ctx));
   }
 }`,
-            });
-          } else {
-            updateStep('building', { progress: Math.min(progress, 99) });
+                  });
+                  console.log('Game complete!');
+                  runningRef.current = false;
+                } else {
+                  updateStep('building', { progress });
+                }
+              }, 300);
+            }, 500);
           }
-        }, 300);
-        timersRef.current.push(setTimeout(() => clearInterval(progressInterval), 3000));
-      }, 7000);
-      timersRef.current.push(timer3);
-    }
+        }, 500);
+      }, 500);
+    }, 1500);
 
-    // Cleanup all timers on unmount or status change
-    return () => {
-      timersRef.current.forEach(timer => clearTimeout(timer));
-      timersRef.current = [];
-    };
   }, [status, updateStep, setStreamingContent, setComplete]);
 
   return (
