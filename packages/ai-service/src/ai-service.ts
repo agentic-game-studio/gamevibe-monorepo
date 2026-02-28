@@ -3,10 +3,15 @@ import {
   GenerateOptions,
   AnalyzeOptions,
   AIResponse,
+  LLMTool,
+  LLMToolCall,
   hashStringSync,
   generateCacheKey
 } from '@gamevibe/shared';
 import { GamePromptBuilder } from './prompts/index.js';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 export interface AIServiceConfig {
   minimaxApiKey: string;
@@ -275,12 +280,21 @@ export class AIService {
     // Truncate messages to stay within context limit
     const truncatedMessages = this.truncateMessages(messages, MAX_CONTEXT_CHARS);
 
-    const body = {
+    const body: Record<string, unknown> = {
       model: options.model || DEFAULT_MODEL,
       max_tokens: maxTokens,
       temperature: options.temperature || 0.7,
       messages: truncatedMessages
     };
+
+    // Add tools to request if provided
+    if (options.tools && options.tools.length > 0) {
+      body.tools = options.tools.map(tool => ({
+        name: tool.name,
+        description: tool.description,
+        input_schema: tool.input_schema
+      }));
+    }
 
     const response = await this.fetchWithRetry(`${MINIMAX_BASE_URL}/v1/messages`, {
       method: 'POST',
@@ -300,7 +314,7 @@ export class AIService {
       id: string;
       type: string;
       role: string;
-      content: Array<{ type: string; text?: string }>;
+      content: Array<{ type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }>;
       usage?: {
         input_tokens: number;
         output_tokens: number;
@@ -308,12 +322,20 @@ export class AIService {
       stop_reason?: string;
     };
 
-    // Extract text content
+    // Extract text content and tool calls
     let content = '';
+    const toolCalls: LLMToolCall[] = [];
+
     if (data.content) {
       for (const c of data.content) {
         if (c.type === 'text' && c.text) {
           content += c.text;
+        } else if (c.type === 'tool_use' && c.name && c.input) {
+          toolCalls.push({
+            id: c.id || `tool-${Date.now()}`,
+            name: c.name,
+            input: c.input
+          });
         }
       }
     }
@@ -321,6 +343,7 @@ export class AIService {
     return {
       content,
       model: options.model || DEFAULT_MODEL,
+      tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
       usage: data.usage ? {
         promptTokens: data.usage.input_tokens,
         completionTokens: data.usage.output_tokens,
@@ -401,6 +424,124 @@ export class AIService {
         }
       }
     }
+  }
+
+  /**
+   * Execute a tool and return the result
+   */
+  private async executeTool(toolName: string, input: Record<string, unknown>): Promise<string> {
+    console.log(`[Tool] Executing ${toolName}:`, JSON.stringify(input).slice(0, 200));
+
+    try {
+      switch (toolName) {
+        case 'write_file': {
+          const filePath = input.path as string;
+          const content = input.content as string;
+          // Resolve relative to project root
+          const __dirname = path.dirname(fileURLToPath(import.meta.url));
+          const projectRoot = path.resolve(__dirname, '../../..');
+          const fullPath = path.isAbsolute(filePath) ? filePath : path.join(projectRoot, filePath);
+          await fs.writeFile(fullPath, content, 'utf-8');
+          return `File written successfully: ${fullPath}`;
+        }
+
+        case 'read_file': {
+          const filePath = input.path as string;
+          const __dirname = path.dirname(fileURLToPath(import.meta.url));
+          const projectRoot = path.resolve(__dirname, '../../..');
+          const fullPath = path.isAbsolute(filePath) ? filePath : path.join(projectRoot, filePath);
+          const content = await fs.readFile(fullPath, 'utf-8');
+          return `File content (first 5000 chars):\n${content.slice(0, 5000)}`;
+        }
+
+        case 'list_files': {
+          const dirPath = input.path as string || '.';
+          const __dirname = path.dirname(fileURLToPath(import.meta.url));
+          const projectRoot = path.resolve(__dirname, '../../..');
+          const fullPath = path.isAbsolute(dirPath) ? dirPath : path.join(projectRoot, dirPath);
+          const files = await fs.readdir(fullPath);
+          return `Files in ${fullPath}:\n${files.join('\n')}`;
+        }
+
+        case 'file_exists': {
+          const filePath = input.path as string;
+          const __dirname = path.dirname(fileURLToPath(import.meta.url));
+          const projectRoot = path.resolve(__dirname, '../../..');
+          const fullPath = path.isAbsolute(filePath) ? filePath : path.join(projectRoot, filePath);
+          try {
+            await fs.access(fullPath);
+            return 'true';
+          } catch {
+            return 'false';
+          }
+        }
+
+        default:
+          return `Unknown tool: ${toolName}`;
+      }
+    } catch (error) {
+      const err = error as Error;
+      return `Error executing ${toolName}: ${err.message}`;
+    }
+  }
+
+  /**
+   * Call LLM with tool execution loop
+   * This allows the AI to iteratively use tools to complete complex tasks
+   */
+  async generateWithTools(options: GenerateOptions): Promise<AIResponse> {
+    if (!options.tools || options.tools.length === 0) {
+      throw new Error('No tools provided for generateWithTools');
+    }
+
+    const maxIterations = 20;
+    let iteration = 0;
+    const messages: Array<{ role: 'user' | 'assistant'; content: string; tool_calls?: LLMToolCall[] }> = [
+      { role: 'user', content: options.prompt }
+    ];
+
+    while (iteration < maxIterations) {
+      iteration++;
+
+      // Make API call
+      const response = await this.generate({
+        ...options,
+        systemPrompt: options.systemPrompt,
+        prompt: messages[messages.length - 1].content
+      });
+
+      // If no tool calls, return the response
+      if (!response.tool_calls || response.tool_calls.length === 0) {
+        return response;
+      }
+
+      console.log(`[ToolLoop] Iteration ${iteration}/${maxIterations}, executing ${response.tool_calls.length} tool calls`);
+
+      // Execute tool calls
+      const toolResults: string[] = [];
+      for (const toolCall of response.tool_calls) {
+        const result = await this.executeTool(toolCall.name, toolCall.input);
+        toolResults.push(`[Tool: ${toolCall.name}]\n${result}`);
+      }
+
+      // Add assistant response and tool results to messages
+      messages.push({
+        role: 'assistant',
+        content: response.content,
+        tool_calls: response.tool_calls
+      });
+      messages.push({
+        role: 'user',
+        content: toolResults.join('\n\n')
+      });
+    }
+
+    // Max iterations reached - return last response without tool calls
+    const lastResponse = await this.generate({
+      ...options,
+      prompt: messages[messages.length - 1].content
+    });
+    return { ...lastResponse, tool_calls: undefined };
   }
 
   private getCacheKey(options: GenerateOptions | AnalyzeOptions): string {
