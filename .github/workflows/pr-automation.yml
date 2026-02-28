@@ -1,0 +1,187 @@
+name: PR Automation
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, ready_for_review]
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  pr-labeler:
+    name: Auto Label PR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Label PR based on files
+      uses: actions/labeler@v5
+      with:
+        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+        
+    - name: Label PR based on branch
+      uses: ffittschen/pr-branch-labeler@v1
+      with:
+        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  pr-size:
+    name: PR Size Label
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Add size labels
+      uses: codelytv/pr-size-labeler@v1
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        xs_label: 'size/XS'
+        xs_max_size: '10'
+        s_label: 'size/S'
+        s_max_size: '100'
+        m_label: 'size/M'
+        m_max_size: '500'
+        l_label: 'size/L'
+        l_max_size: '1000'
+        xl_label: 'size/XL'
+        fail_if_xl: 'false'
+
+  pr-title:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Validate PR title
+      uses: amannn/action-semantic-pull-request@v5
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        types: |
+          feat
+          fix
+          docs
+          style
+          refactor
+          perf
+          test
+          build
+          ci
+          chore
+          revert
+        requireScope: false
+        subjectPattern: ^(?![A-Z]).+$
+        subjectPatternError: |
+          The subject "{subject}" found in the pull request title "{title}"
+          didn't match the configured pattern. Please ensure that the subject
+          doesn't start with an uppercase character.
+
+  auto-assign:
+    name: Auto Assign Reviewers
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.action == 'opened'
+    
+    steps:
+    - name: Auto assign reviewers
+      uses: kentaro-m/auto-assign-action@v1.2.5
+      with:
+        configuration-path: '.github/auto-assign.yml'
+
+  pr-comment-commands:
+    name: PR Comment Commands
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issue_comment' && github.event.issue.pull_request
+    
+    steps:
+    - name: Check for command
+      id: command
+      uses: xt0rted/slash-command-action@v2
+      with:
+        command: deploy
+        reaction-type: "rocket"
+        
+    - name: Deploy preview
+      if: steps.command.outputs.command-name == 'deploy' && steps.command.outputs.command-arguments == 'preview'
+      run: |
+        echo "Deploying preview environment..."
+        # Add preview deployment logic here
+        
+    - name: Update comment
+      if: steps.command.outputs.command-name
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        comment-id: ${{ github.event.comment.id }}
+        body: |
+          Preview deployment started! 🚀
+          Check back in a few minutes for the preview URL.
+
+  conflict-check:
+    name: Check for Conflicts
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Check for merge conflicts
+      uses: eps1lon/actions-label-merge-conflict@v3
+      with:
+        dirtyLabel: "has conflicts"
+        repoToken: "${{ secrets.GITHUB_TOKEN }}"
+        commentOnDirty: "This pull request has conflicts. Please resolve the conflicts and push again."
+
+  stale-pr:
+    name: Mark Stale PRs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Mark stale PRs
+      uses: actions/stale@v9
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        stale-pr-message: 'This PR has been automatically marked as stale because it has not had recent activity. It will be closed if no further activity occurs.'
+        stale-pr-label: 'stale'
+        days-before-pr-stale: 30
+        days-before-pr-close: 7
+
+  pr-metrics:
+    name: PR Metrics
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    
+    steps:
+    - name: Track PR metrics
+      uses: slackapi/slack-github-action@v1.24.0
+      with:
+        payload: |
+          {
+            "text": "PR Merged",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*PR Merged:* <${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Author:* ${{ github.event.pull_request.user.login }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Time to merge:* ${{ github.event.pull_request.created_at }} → ${{ github.event.pull_request.merged_at }}"
+                  }
+                ]
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

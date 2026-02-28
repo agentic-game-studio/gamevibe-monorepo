@@ -1,0 +1,6 @@
+{
+    "env": {
+      "ANTHROPIC_DEFAULT_SONNET_MODEL": "MiniMax-M2.5-Lightning",
+      "ANTHROPIC_DEFAULT_OPUS_MODEL": "MiniMax-M2.5-Lightning"
+    }
+}

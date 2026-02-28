@@ -1,0 +1,37 @@
+{
+  "name": "@gamevibe/multiplayer-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Real-time multiplayer server for GameVibe AI using Colyseus",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@colyseus/core": "0.16.19",
+    "@colyseus/schema": "^3.0.0",
+    "@colyseus/ws-transport": "0.16.5",
+    "@gamevibe/shared": "workspace:*",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "ioredis": "^5.4.2",
+    "jsonwebtoken": "^9.0.2",
+    "pino": "^9.5.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.0-dev.20241222"
+  }
+}

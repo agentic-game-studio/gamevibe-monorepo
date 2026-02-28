@@ -1,0 +1,254 @@
+# GameVibe AI - Local Development Environment
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: gamevibe-postgres
+    environment:
+      POSTGRES_DB: gamevibe
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./packages/bot/prisma/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: gamevibe-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Jaeger - Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: gamevibe-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "14250:14250"   # gRPC
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:16686/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # GameVibe Bot
+  gamevibe-bot:
+    image: gamevibe-bot:simple
+    container_name: gamevibe-bot
+    environment:
+      # Discord Configuration
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_PUBLIC_KEY: ${DISCORD_PUBLIC_KEY}
+      DEVELOPMENT_GUILD_ID: ${DEVELOPMENT_GUILD_ID}
+      
+      # Database
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/gamevibe
+      
+      # Cache  
+      REDIS_URL: redis://redis:6379
+      
+      # AI Services
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      
+      # Web Runtime
+      WEB_RUNTIME_URL: ${WEB_RUNTIME_URL:-http://localhost:3001}
+      
+      # Multiplayer Server
+      MULTIPLAYER_URL: ws://gamevibe-multiplayer:2567
+      JWT_SECRET: ${JWT_SECRET:-gamevibe-secret-key}
+      
+      # Stripe Configuration
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_placeholder}
+      STRIPE_STARTER_PRICE_ID: ${STRIPE_STARTER_PRICE_ID:-price_starter_monthly}
+      STRIPE_PRO_PRICE_ID: ${STRIPE_PRO_PRICE_ID:-price_pro_monthly}
+      STRIPE_ENTERPRISE_PRICE_ID: ${STRIPE_ENTERPRISE_PRICE_ID:-price_enterprise_monthly}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      
+      # Storage (S3-compatible)
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-gamevibe-assets}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      
+      # Monitoring
+      MONITORING_PORT: 8081
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      
+      # Environment
+      NODE_ENV: development
+      LOG_LEVEL: debug
+    ports:
+      - "8081:8081"  # Monitoring
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8081/health/live').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # GameVibe Web Runtime
+  gamevibe-web:
+    build:
+      context: .
+      dockerfile: packages/web-runtime/Dockerfile
+      args:
+        VITE_DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+        VITE_API_BASE_URL: http://127.0.0.1:8081
+        VITE_MULTIPLAYER_URL: ws://127.0.0.1:2567
+    container_name: gamevibe-web
+    ports:
+      - "3001:80"
+    depends_on:
+      - gamevibe-bot
+      - gamevibe-multiplayer
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # GameVibe Showcase Portal
+  gamevibe-portal:
+    image: gamevibe-portal:latest
+    container_name: gamevibe-portal
+    environment:
+      # API Configuration
+      NEXT_PUBLIC_API_URL: http://localhost:8081
+      NEXT_PUBLIC_WEB_RUNTIME_URL: http://localhost:3001
+      
+      # Discord
+      NEXT_PUBLIC_DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      
+      # Environment
+      NODE_ENV: production
+    ports:
+      - "3002:3002"
+    depends_on:
+      - gamevibe-bot
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/api/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # GameVibe Multiplayer Server
+  gamevibe-multiplayer:
+    build:
+      context: .
+      dockerfile: packages/multiplayer-server/Dockerfile
+    container_name: gamevibe-multiplayer
+    environment:
+      # Server Configuration
+      MULTIPLAYER_PORT: 2567
+      MULTIPLAYER_URL: ws://localhost:2567
+      
+      # Database
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/gamevibe
+      
+      # Cache  
+      REDIS_URL: redis://redis:6379
+      
+      # JWT Secret
+      JWT_SECRET: ${JWT_SECRET:-gamevibe-secret-key}
+      
+      # Environment
+      NODE_ENV: development
+      LOG_LEVEL: debug
+    ports:
+      - "2567:2567"  # WebSocket server
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:2567/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # Prometheus (Optional - for metrics collection)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gamevibe-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - gamevibe-bot
+    profiles:
+      - monitoring
+
+  # Grafana (Optional - for metrics visualization)  
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gamevibe-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  default:
+    name: gamevibe-network

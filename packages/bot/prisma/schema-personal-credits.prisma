@@ -1,0 +1,233 @@
+// Personal Credits System - Schema Addition
+// Add these models to your existing schema.prisma file
+
+// Personal credits balance (separate from subscription credits)
+model UserPersonalCredits {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  
+  // Balance tracking
+  balance        Int      @default(0)
+  totalEarned    Int      @default(0)
+  totalSpent     Int      @default(0)
+  
+  // Creator tier based on total earned
+  creatorTier    CreatorTier @default(BRONZE)
+  tierUpgradedAt DateTime?
+  
+  // Metadata
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Relations
+  transactions   PersonalCreditTransaction[]
+  
+  @@index([userId])
+  @@index([creatorTier])
+}
+
+// Credit earning/spending history
+model PersonalCreditTransaction {
+  id             String   @id @default(cuid())
+  userId         String
+  
+  // Transaction details
+  type           TransactionType
+  amount         Int
+  balanceAfter   Int
+  
+  // Earning details (for EARNED type)
+  earningReason  EarningReason?
+  earningMeta    Json?
+  
+  // Spending details (for SPENT type)
+  spentOn        String?
+  serverId       String?
+  
+  createdAt      DateTime @default(now())
+  
+  // Relations
+  user           UserPersonalCredits @relation(fields: [userId], references: [userId])
+  
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([earningReason])
+}
+
+// Server referral tracking
+model ServerReferral {
+  id                    String   @id @default(cuid())
+  referrerId            String
+  serverId              String   @unique
+  
+  // Referral details
+  referralCode          String?
+  installedAt           DateTime @default(now())
+  subscribedAt          DateTime?
+  subscriptionTier      SubscriptionTier?
+  
+  // Rewards tracking
+  initialReward         Int      @default(0)
+  monthlyCommissionRate Float    @default(0.10)
+  totalCommissionEarned Int      @default(0)
+  lastCommissionAt      DateTime?
+  
+  @@index([referrerId])
+  @@index([referralCode])
+}
+
+// Track game reach across servers
+model GameServerReach {
+  id              String   @id @default(cuid())
+  gameId          String
+  serverId        String
+  
+  // Metrics
+  playCount       Int      @default(0)
+  uniquePlayers   Int      @default(0)
+  firstPlayedAt   DateTime @default(now())
+  lastPlayedAt    DateTime @default(now())
+  
+  // Relations
+  game            Game     @relation(fields: [gameId], references: [id])
+  
+  @@unique([gameId, serverId])
+  @@index([gameId])
+}
+
+// Creator achievements
+model UserAchievement {
+  id              String   @id @default(cuid())
+  userId          String
+  achievementId   String
+  
+  // Progress tracking
+  progress        Int      @default(0)
+  completed       Boolean  @default(false)
+  
+  // Timestamps
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  sharedAt        DateTime?
+  
+  // Stats
+  shareCount      Int      @default(0)
+  
+  @@unique([userId, achievementId])
+  @@index([userId, completed])
+}
+
+// Game sharing tracking
+model GameShare {
+  id              String   @id @default(cuid())
+  gameId          String
+  sharerId        String
+  shareCode       String   @unique
+  shareType       ShareType
+  channelId       String?
+  serverId        String?
+  
+  // Metrics
+  viewCount       Int      @default(0)
+  clickCount      Int      @default(0)
+  playCount       Int      @default(0)
+  conversionCount Int      @default(0)
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  lastClickedAt   DateTime?
+  
+  // Relations
+  game            Game     @relation(fields: [gameId], references: [id])
+  conversions     ShareConversion[]
+  
+  @@index([shareCode])
+  @@index([gameId, createdAt(sort: Desc)])
+  @@index([sharerId, createdAt(sort: Desc)])
+}
+
+// Share conversion tracking
+model ShareConversion {
+  id              String   @id @default(cuid())
+  shareId         String
+  userId          String
+  action          ConversionAction
+  createdAt       DateTime @default(now())
+  
+  // Relations
+  share           GameShare @relation(fields: [shareId], references: [id])
+  
+  @@unique([shareId, userId, action])
+}
+
+// Viral event tracking
+model ViralEvent {
+  id              String   @id @default(cuid())
+  type            ViralEventType
+  userId          String
+  serverId        String?
+  gameId          String?
+  metadata        Json?
+  viralScore      Int      @default(0)
+  timestamp       DateTime @default(now())
+  
+  @@index([userId, timestamp(sort: Desc)])
+  @@index([type, timestamp(sort: Desc)])
+}
+
+// ENUMS
+enum CreatorTier {
+  BRONZE
+  SILVER
+  GOLD
+  DIAMOND
+}
+
+enum TransactionType {
+  EARNED
+  SPENT
+  EXPIRED
+}
+
+enum EarningReason {
+  GAME_PLAYS
+  VIRAL_GAME
+  CROSS_SERVER
+  SERVER_REFERRAL
+  SERVER_SUBSCRIPTION
+  ENGAGEMENT_BOOST
+  CHALLENGE_WON
+  ACHIEVEMENT
+  TIER_UPGRADE
+  BONUS
+}
+
+enum ShareType {
+  DISCORD
+  TWITTER
+  EMBED
+  DIRECT
+}
+
+enum ConversionAction {
+  VIEW
+  PLAY
+  CREATE
+  SUBSCRIBE
+}
+
+enum ViralEventType {
+  GAME_CREATED
+  HIGH_SCORE
+  ACHIEVEMENT_UNLOCKED
+  CHALLENGE_CREATED
+  CHALLENGE_WON
+  VIRAL_MOMENT
+  MILESTONE_REACHED
+  REMIX_CREATED
+  TRENDING_GAME
+}
+
+// Update existing Game model to add relation
+// Add this to your existing Game model:
+// serverReach     GameServerReach[]
+// shares          GameShare[]

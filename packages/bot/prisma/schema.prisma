@@ -1,0 +1,1153 @@
+// GameVibe AI Database Schema
+// Discord bot for AI-generated games
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GameType {
+  PLATFORMER
+  PUZZLE
+  RPG
+  SHOOTER
+  ENDLESS_RUNNER
+  TOWER_DEFENSE
+  OTHER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  discordId String   @unique
+  username  String
+  discriminator String?
+  avatarUrl String?
+  premiumTier Int     @default(0)
+  premiumExpiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  games        Game[]
+  leaderboard  LeaderboardEntry[]
+  serverSubscriptions ServerSubscription[]
+  subscriptionManagers SubscriptionManager[]
+  managersAdded SubscriptionManager[] @relation("ManagerAddedBy")
+  usageLogs    UsageLog[]
+  
+  // Remix relations
+  remixes      GameRemix[]     // Remixes created by this user
+  gameVersions GameVersion[]   // Game versions created by this user
+  
+  // Credit relations
+  creditBalances   CreditBalance[]
+  creditTransactions CreditTransaction[]
+  
+  // Personal credit relations
+  personalCredits  UserPersonalCredits?
+  
+  // Achievement relations
+  achievements     UserAchievement[]
+  achievementProgress AchievementProgress[]
+  
+  // Challenge relations
+  challengesCreated Challenge[]         @relation("ChallengerChallenges")
+  challengesReceived Challenge[]        @relation("ChallengeeChallenges") 
+  challengeParticipations ChallengeParticipant[]
+  challengeWins    ChallengeResult[]    @relation("ChallengeWins")
+  challengeLosses  ChallengeResult[]    @relation("ChallengeLosses")
+  
+  // Ambassador relations
+  ambassadorships  ServerAmbassador[]   @relation("UserAmbassadorships")
+  appointedAmbassadors ServerAmbassador[] @relation("AmbassadorAppointments")
+  ambassadorUserActivities AmbassadorActivity[] @relation("AmbassadorUserActivities")
+  ambassadorActivityVerifications AmbassadorActivity[] @relation("AmbassadorActivityVerifications")
+  ambassadorRewardAwards AmbassadorReward[] @relation("AmbassadorRewardAwards")
+  
+  // Creator partnership relations
+  creatorPartnership    CreatorPartnership? @relation("UserCreatorPartnership")
+  creatorApprovals      CreatorPartnership[] @relation("CreatorApprovals")
+  contentVerifications  CreatorContent[] @relation("ContentVerifications")
+  
+  @@map("users")
+}
+
+model Server {
+  id        String   @id @default(cuid())
+  discordId String   @unique
+  name      String
+  memberCount Int
+  premiumTier Int     @default(0)
+  premiumExpiresAt DateTime?
+  settings  Json     @default("{}")
+  referralCode String? @unique // Unique referral code for this server
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  games        Game[]
+  gameSessions GameSession[]
+  subscription ServerSubscription?
+  
+  // Credit relations
+  creditBalances   CreditBalance[]
+  creditTransactions CreditTransaction[]
+  
+  // Referral relations
+  referredServers ServerReferral[] @relation("ReferringServer")
+  referralReceived ServerReferral? @relation("ReferredServer")
+  
+  // Ambassador relations
+  ambassadors      ServerAmbassador[] @relation("ServerAmbassadors")
+  ambassadorActivities AmbassadorActivity[] @relation("AmbassadorActivities")
+  ambassadorRewards AmbassadorReward[] @relation("AmbassadorRewards")
+  
+  // Social media relations
+  scheduledPosts   ScheduledPost[] @relation("ScheduledPosts")
+  
+  @@map("servers")
+}
+
+model GameTemplate {
+  id       String   @id @default(cuid())
+  name     String
+  type     GameType
+  structure String
+  sections Json     @default("{}")
+  defaultAssets Json @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  games Game[]
+  
+  @@map("game_templates")
+}
+
+model Game {
+  id          String   @id @default(cuid())
+  shortId     String   @unique @default(cuid())
+  serverId    String
+  creatorId   String
+  name        String
+  description String
+  type        GameType
+  templateId  String?
+  code        String   @db.Text
+  assets      Json     @default("{}")
+  metadata    Json     @default("{}")
+  playCount   Int      @default(0)
+  remixCount  Int      @default(0)
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  server       Server            @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  creator      User              @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  template     GameTemplate?     @relation(fields: [templateId], references: [id])
+  sessions     GameSession[]
+  leaderboard  LeaderboardEntry[]
+  
+  // Remix relations
+  originalGameRemixes GameRemix[] @relation("OriginalGameRemixes") // Games that were remixed from this game
+  remixOfGame      GameRemix?     @relation("RemixedGame") // If this game is a remix
+  versions         GameVersion[]  // Version history for this game
+  
+  // Challenge relations
+  challenges       Challenge[]     // Challenges created for this game
+  
+  // Ambassador relations
+  ambassadorGameActivities AmbassadorActivity[] @relation("AmbassadorGameActivities")
+  
+  // Social media relations
+  socialMediaPosts SocialMediaPost[]
+
+  @@map("games")
+}
+
+model GameSession {
+  id            String    @id @default(cuid())
+  gameId        String
+  serverId      String
+  channelId     String
+  activePlayers Int       @default(0)
+  state         Json      @default("{}")
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+
+  // Relations
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@map("game_sessions")
+}
+
+model LeaderboardEntry {
+  id         String   @id @default(cuid())
+  gameId     String
+  userId     String
+  score      Int
+  metadata   Json     @default("{}")
+  achievedAt DateTime @default(now())
+
+  // Relations
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, userId])
+  @@map("leaderboard_entries")
+}
+
+// Subscription-related models
+
+enum SubscriptionStatus {
+  INACTIVE
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  TRIALING
+}
+
+enum SubscriptionTier {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum ManagerRole {
+  OWNER
+  ADMIN
+  BILLING
+}
+
+model ServerSubscription {
+  id                         String             @id @default(cuid())
+  serverId                   String             @unique
+  discordServerId           String             @unique
+  
+  // Subscription details
+  status                     SubscriptionStatus @default(INACTIVE)
+  tier                       SubscriptionTier   @default(FREE)
+  
+  // Stripe data
+  stripeCustomerId          String?            @unique
+  stripeSubscriptionId      String?            @unique
+  stripePriceId             String?
+  
+  // Subscription lifecycle
+  trialEndsAt               DateTime?
+  currentPeriodStart        DateTime?
+  currentPeriodEnd          DateTime?
+  canceledAt                DateTime?
+  cancelAtPeriodEnd         Boolean            @default(false)
+  
+  // Usage tracking
+  gamesCreatedThisPeriod    Int                @default(0)
+  lastGameCreatedAt         DateTime?
+  
+  // Metadata
+  subscribedByUserId        String?
+  subscriptionMetadata      Json               @default("{}")
+  
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+
+  // Relations
+  server                    Server             @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  subscribedBy              User?              @relation(fields: [subscribedByUserId], references: [id])
+  managers                  SubscriptionManager[]
+  usageLogs                 UsageLog[]
+  billingHistory            BillingHistory[]
+
+  @@map("server_subscriptions")
+}
+
+model SubscriptionManager {
+  id                String             @id @default(cuid())
+  serverId          String
+  userId            String
+  discordUserId     String
+  role              ManagerRole
+  addedById         String?
+  createdAt         DateTime           @default(now())
+
+  // Relations  
+  subscription      ServerSubscription @relation(fields: [serverId], references: [serverId], onDelete: Cascade)
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addedBy           User?              @relation("ManagerAddedBy", fields: [addedById], references: [id])
+
+  @@unique([serverId, userId])
+  @@map("subscription_managers")
+}
+
+model UsageLog {
+  id                String             @id @default(cuid())
+  serverId          String
+  action            String
+  userId            String?
+  metadata          Json               @default("{}")
+  createdAt         DateTime           @default(now())
+
+  // Relations
+  subscription      ServerSubscription @relation(fields: [serverId], references: [serverId], onDelete: Cascade)
+  user              User?              @relation(fields: [userId], references: [id])
+
+  @@index([serverId, createdAt])
+  @@map("usage_logs")
+}
+
+model BillingHistory {
+  id                String             @id @default(cuid())
+  serverId          String
+  stripeInvoiceId   String?            @unique
+  amount            Int                // in cents
+  currency          String             @default("USD")
+  status            String
+  invoicePdfUrl     String?
+  createdAt         DateTime           @default(now())
+
+  // Relations
+  subscription      ServerSubscription @relation(fields: [serverId], references: [serverId], onDelete: Cascade)
+
+  @@map("billing_history")
+}
+
+// Game Remixing System
+
+enum RemixType {
+  FORK        // Direct copy with modifications
+  VARIATION   // Template variation with different parameters
+  COMMUNITY   // Community-created remix
+  OFFICIAL    // Official template variation
+}
+
+model GameRemix {
+  id                String    @id @default(cuid())
+  originalGameId    String
+  remixGameId       String    @unique
+  remixType         RemixType @default(FORK)
+  
+  // Remix metadata
+  title             String?
+  description       String?
+  changes           Json      @default("[]") // Array of changes made
+  tags              String[]  @default([])
+  
+  // Stats
+  popularity        Int       @default(0)
+  forkCount         Int       @default(0)
+  
+  // Attribution
+  remixedByUserId   String
+  remixedAt         DateTime  @default(now())
+  
+  // Relations
+  originalGame      Game      @relation("OriginalGameRemixes", fields: [originalGameId], references: [id], onDelete: Cascade)
+  remixGame         Game      @relation("RemixedGame", fields: [remixGameId], references: [id], onDelete: Cascade)
+  remixedBy         User      @relation(fields: [remixedByUserId], references: [id], onDelete: Cascade)
+  versions          GameVersion[]
+  
+  @@index([originalGameId])
+  @@index([remixedByUserId])
+  @@index([popularity])
+  @@map("game_remixes")
+}
+
+model GameVersion {
+  id                String    @id @default(cuid())
+  gameId            String    
+  remixId           String?   // If this version is part of a remix
+  version           String    // e.g., "1.0", "1.1", "2.0"
+  title             String
+  description       String?
+  
+  // Version content
+  code              String    @db.Text
+  assets            Json      @default("{}")
+  metadata          Json      @default("{}")
+  
+  // Change tracking
+  changelog         String?   @db.Text
+  changes           Json      @default("[]") // Structured changes
+  diffFromPrevious  Json      @default("{}") // Diff data
+  
+  // Version metadata
+  isLatest          Boolean   @default(false)
+  isPublished       Boolean   @default(true)
+  createdByUserId   String
+  createdAt         DateTime  @default(now())
+  
+  // Relations
+  game              Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  remix             GameRemix? @relation(fields: [remixId], references: [id], onDelete: Cascade)
+  createdBy         User      @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  
+  @@unique([gameId, version])
+  @@index([gameId, isLatest])
+  @@index([remixId])
+  @@map("game_versions")
+}
+
+// Credit System Models
+
+enum CreditTransactionType {
+  DEDUCTION
+  ALLOCATION
+  PURCHASE
+  ROLLOVER
+  REFUND
+}
+
+model CreditBalance {
+  id                String   @id @default(cuid())
+  userId            String
+  serverId          String
+  totalCredits      Int      @default(0) // Total credits used lifetime (for analytics)
+  availableCredits  Int      @default(0) // Current available credits in cents
+  monthlyAllotment  Int      @default(0) // Monthly credit allocation in cents
+  tier              SubscriptionTier @default(FREE)
+  rolloverCredits   Int      @default(0) // Credits rolled over from previous periods
+  lastUpdated       DateTime @default(now()) @updatedAt
+  nextReset         DateTime // Next monthly reset date
+  createdAt         DateTime @default(now())
+
+  // Relations
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  server            Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  transactions      CreditTransaction[]
+
+  @@unique([userId, serverId])
+  @@index([userId])
+  @@index([serverId])
+  @@index([nextReset])
+  @@map("credit_balances")
+}
+
+model CreditTransaction {
+  id                String                @id @default(cuid()) 
+  userId            String
+  serverId          String
+  type              CreditTransactionType
+  amount            Int                   // Amount in cents (positive for credits added, negative for deducted)
+  model             String                // AI model used (or 'system' for non-AI transactions)
+  tokensUsed        Int?                  // Number of tokens used (for AI transactions)
+  description       String                // Human-readable description
+  balanceBefore     Int                   // Balance before this transaction
+  balanceAfter      Int                   // Balance after this transaction  
+  metadata          String?               // JSON metadata for additional context
+  createdAt         DateTime              @default(now())
+
+  // Relations
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  server            Server                @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  creditBalance     CreditBalance         @relation(fields: [userId, serverId], references: [userId, serverId], onDelete: Cascade)
+
+  @@index([userId, serverId])
+  @@index([createdAt])
+  @@index([type])
+  @@index([model])
+  @@map("credit_transactions")
+}
+
+model ServerReferral {
+  id                String   @id @default(cuid())
+  referringServerId String   // Server that made the referral
+  referredServerId  String   // Server that was referred
+  referralCode      String   // Referral code used
+  installedAt       DateTime @default(now()) // When the bot was installed
+  subscribedAt      DateTime? // When/if they subscribed
+  subscriptionTier  SubscriptionTier? // What tier they subscribed to
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  referringServer   Server   @relation("ReferringServer", fields: [referringServerId], references: [id])
+  referredServer    Server   @relation("ReferredServer", fields: [referredServerId], references: [id])
+
+  @@unique([referredServerId]) // A server can only be referred once
+  @@index([referringServerId])
+  @@index([referralCode])
+  @@index([subscribedAt])
+  @@map("server_referrals")
+}
+
+// Personal Credits System
+
+model UserPersonalCredits {
+  id               String      @id @default(cuid())
+  userId           String      @unique
+  balance          Int         @default(0) // Current personal credit balance
+  totalEarned      Int         @default(0) // Total credits ever earned
+  totalSpent       Int         @default(0) // Total credits ever spent
+  creatorTier      CreatorTier @default(BRONZE)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  // Relations
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_personal_credits")
+}
+
+// Achievement System
+
+enum AchievementCategory {
+  CREATOR       // Game creation achievements
+  PLAYER        // Playing games achievements
+  SOCIAL        // Sharing and viral achievements
+  COLLECTOR     // Collection achievements
+  MILESTONE     // Major milestones
+  SPECIAL       // Special/seasonal achievements
+}
+
+enum AchievementRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+model Achievement {
+  id                String              @id @default(cuid())
+  key               String              @unique // Unique identifier like "first_game_created"
+  name              String
+  description       String
+  category          AchievementCategory
+  rarity            AchievementRarity
+  creditReward      Int                 @default(0) // Personal credits awarded
+  iconEmoji         String              @default("🏆")
+  
+  // Achievement requirements
+  targetValue       Int?                // Target value to reach (e.g., 100 plays)
+  targetType        String?             // Type of target (e.g., "game_plays", "games_created")
+  metadata          Json                @default("{}") // Additional requirements/config
+  
+  // Display info
+  hidden            Boolean             @default(false) // Hidden until unlocked
+  sortOrder         Int                 @default(0)
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  userAchievements  UserAchievement[]
+  progress          AchievementProgress[]
+
+  @@index([category])
+  @@index([rarity])
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id                String      @id @default(cuid())
+  userId            String
+  achievementId     String
+  unlockedAt        DateTime    @default(now())
+  metadata          Json        @default("{}") // Additional data about how it was earned
+  creditsClaimed    Boolean     @default(false) // Whether rewards were claimed
+
+  // Relations
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement       Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([unlockedAt])
+  @@map("user_achievements")
+}
+
+model AchievementProgress {
+  id                String      @id @default(cuid())
+  userId            String
+  achievementId     String
+  currentValue      Int         @default(0)
+  targetValue       Int
+  startedAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement       Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("achievement_progress")
+}
+
+// Challenge System
+
+enum ChallengeType {
+  SCORE_BEAT    // Beat the challenger's high score
+  SPEED_RUN     // Complete the game faster
+  DIRECT_1V1    // Direct head-to-head competition
+}
+
+enum ChallengeStatus {
+  PENDING       // Waiting for acceptance
+  ACTIVE        // Challenge accepted, in progress
+  COMPLETED     // Challenge finished
+  EXPIRED       // Challenge expired
+  CANCELLED     // Challenge cancelled
+}
+
+model Challenge {
+  id                String          @id @default(cuid())
+  gameId            String          // Game being challenged on
+  challengerId      String          // User who created the challenge
+  challengeeId      String?         // User being challenged (null for open challenges)
+  type              ChallengeType
+  status            ChallengeStatus @default(PENDING)
+  
+  // Challenge details
+  wagerAmount       Int             @default(0) // Personal credits wagered
+  targetScore       Int?            // Score to beat (for SCORE_BEAT)
+  targetTime        Int?            // Time to beat in seconds (for SPEED_RUN)
+  description       String?         // Optional challenge description
+  
+  // Challenge lifecycle
+  createdAt         DateTime        @default(now())
+  expiresAt         DateTime        // When challenge expires
+  acceptedAt        DateTime?       // When challenge was accepted
+  completedAt       DateTime?       // When challenge was completed
+  
+  // Metadata
+  metadata          Json            @default("{}")
+  isPublic          Boolean         @default(true) // Whether challenge can be seen by others
+  serverId          String?         // Server where challenge was created
+  
+  // Relations
+  game              Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  challenger        User            @relation("ChallengerChallenges", fields: [challengerId], references: [id], onDelete: Cascade)
+  challengee        User?           @relation("ChallengeeChallenges", fields: [challengeeId], references: [id], onDelete: Cascade)
+  participants      ChallengeParticipant[]
+  results           ChallengeResult[]
+  
+  // Ambassador relations
+  ambassadorChallengeActivities AmbassadorActivity[] @relation("AmbassadorChallengeActivities")
+  
+  @@index([gameId])
+  @@index([challengerId])
+  @@index([challengeeId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("challenges")
+}
+
+model ChallengeParticipant {
+  id                String    @id @default(cuid())
+  challengeId       String
+  userId            String
+  joinedAt          DateTime  @default(now())
+  hasCompleted      Boolean   @default(false)
+  completedAt       DateTime?
+  
+  // Results
+  finalScore        Int?
+  completionTime    Int?      // Time in seconds
+  metadata          Json      @default("{}")
+  
+  // Relations
+  challenge         Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([challengeId, userId])
+  @@index([userId])
+  @@map("challenge_participants")
+}
+
+model ChallengeResult {
+  id                String    @id @default(cuid())
+  challengeId       String
+  winnerId          String?   // null for tie
+  loserId           String?   // null for tie
+  
+  // Result details
+  winnerScore       Int?
+  loserScore        Int?
+  winnerTime        Int?      // Time in seconds
+  loserTime         Int?      // Time in seconds
+  isDraw            Boolean   @default(false)
+  
+  // Credit transfer
+  creditsTransferred Int      @default(0)
+  transferredAt     DateTime?
+  
+  // Metadata
+  completedAt       DateTime  @default(now())
+  metadata          Json      @default("{}")
+  
+  // Relations
+  challenge         Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  winner            User?     @relation("ChallengeWins", fields: [winnerId], references: [id], onDelete: Cascade)
+  loser             User?     @relation("ChallengeLosses", fields: [loserId], references: [id], onDelete: Cascade)
+  
+  @@index([challengeId])
+  @@index([winnerId])
+  @@index([completedAt])
+  @@map("challenge_results")
+}
+
+// Server Ambassador System
+
+enum AmbassadorStatus {
+  ACTIVE        // Currently serving as ambassador
+  INACTIVE      // Temporarily inactive
+  RETIRED       // No longer ambassador
+  SUSPENDED     // Suspended from program
+}
+
+enum AmbassadorRank {
+  APPRENTICE    // New ambassador
+  AMBASSADOR    // Standard ambassador  
+  SENIOR        // Experienced ambassador
+  MASTER        // Top-tier ambassador
+}
+
+model ServerAmbassador {
+  id                String          @id @default(cuid())
+  serverId          String          // Server they represent
+  userId            String          // User who is ambassador
+  status            AmbassadorStatus @default(ACTIVE)
+  rank              AmbassadorRank   @default(APPRENTICE)
+  
+  // Appointment details
+  appointedById     String          // User who appointed them
+  appointedAt       DateTime        @default(now())
+  lastActiveAt      DateTime        @default(now())
+  
+  // Ambassador benefits
+  creditMultiplier  Float           @default(1.5) // Earning rate multiplier
+  maxPersonalCredits Int            @default(2000) // Higher credit limit
+  
+  // Performance tracking
+  totalContributions Int            @default(0) // Total contribution points
+  monthlyContributions Int          @default(0) // Current month contributions
+  streak            Int             @default(0) // Current active streak in days
+  longestStreak     Int             @default(0) // Longest streak achieved
+  
+  // Metadata
+  specialPermissions Json           @default("[]") // Array of special permissions
+  notes             String?         // Admin notes about ambassador
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  server            Server          @relation("ServerAmbassadors", fields: [serverId], references: [id], onDelete: Cascade)
+  user              User            @relation("UserAmbassadorships", fields: [userId], references: [id], onDelete: Cascade)  
+  appointedBy       User            @relation("AmbassadorAppointments", fields: [appointedById], references: [id])
+  activities        AmbassadorActivity[]
+  rewards           AmbassadorReward[]
+
+  @@unique([serverId, userId]) // One ambassadorship per user per server
+  @@index([serverId])
+  @@index([userId]) 
+  @@index([status])
+  @@index([rank])
+  @@map("server_ambassadors")
+}
+
+enum ActivityType {
+  GAME_CREATED      // Created a game
+  PLAYER_RECRUITED  // Recruited a new player
+  CHALLENGE_HOSTED  // Hosted a challenge
+  COMMUNITY_EVENT   // Organized community event
+  FEEDBACK_PROVIDED // Provided valuable feedback
+  BUG_REPORTED      // Reported a bug
+  TUTORIAL_CREATED  // Created tutorial content
+  MENTORED_USER     // Mentored another user
+  VIRAL_CONTENT     // Created viral content
+  SERVER_GROWTH     // Contributed to server growth
+}
+
+model AmbassadorActivity {
+  id                String         @id @default(cuid())
+  ambassadorId      String         // Ambassador who performed the activity
+  serverId          String         // Server where activity occurred
+  type              ActivityType
+  
+  // Activity details
+  title             String         // Brief title of activity
+  description       String?        // Detailed description
+  points            Int            @default(0) // Contribution points earned
+  metadata          Json           @default("{}") // Additional data
+  
+  // References
+  relatedGameId     String?        // Game related to activity (if applicable)
+  relatedUserId     String?        // User related to activity (if applicable)
+  relatedChallengeId String?       // Challenge related to activity (if applicable)
+  
+  // Verification
+  isVerified        Boolean        @default(false) // Whether activity is verified
+  verifiedById      String?        // Admin who verified
+  verifiedAt        DateTime?      // When verified
+  
+  createdAt         DateTime       @default(now())
+  
+  // Relations
+  ambassador        ServerAmbassador @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+  server            Server         @relation("AmbassadorActivities", fields: [serverId], references: [id], onDelete: Cascade)
+  relatedGame       Game?          @relation("AmbassadorGameActivities", fields: [relatedGameId], references: [id])
+  relatedUser       User?          @relation("AmbassadorUserActivities", fields: [relatedUserId], references: [id])
+  relatedChallenge  Challenge?     @relation("AmbassadorChallengeActivities", fields: [relatedChallengeId], references: [id])
+  verifiedBy        User?          @relation("AmbassadorActivityVerifications", fields: [verifiedById], references: [id])
+
+  @@index([ambassadorId])
+  @@index([serverId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("ambassador_activities")
+}
+
+enum RewardType {
+  MONTHLY_BONUS     // Monthly performance bonus
+  RANK_PROMOTION    // Reward for rank advancement
+  MILESTONE         // Milestone achievement reward
+  SPECIAL_EVENT     // Special event reward
+  COMMUNITY_VOTE    // Community recognition reward
+  PERFORMANCE       // Outstanding performance reward
+}
+
+model AmbassadorReward {
+  id                String         @id @default(cuid())
+  ambassadorId      String         // Ambassador receiving reward
+  serverId          String         // Server context
+  type              RewardType
+  
+  // Reward details
+  title             String         // Reward title
+  description       String         // Reward description
+  personalCredits   Int            @default(0) // Personal credits awarded
+  specialBadge      String?        // Special badge/title earned
+  
+  // Criteria
+  period            String?        // Time period (e.g., "2024-01", "Q1-2024")
+  contributionPoints Int           @default(0) // Points that earned this reward
+  rankAchieved      AmbassadorRank? // Rank achieved (if applicable)
+  
+  // Status
+  isAwarded         Boolean        @default(false) // Whether reward was given
+  awardedAt         DateTime?      // When reward was awarded
+  awardedById       String?        // Admin who awarded
+  
+  createdAt         DateTime       @default(now())
+  
+  // Relations
+  ambassador        ServerAmbassador @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+  server            Server         @relation("AmbassadorRewards", fields: [serverId], references: [id], onDelete: Cascade)
+  awardedBy         User?          @relation("AmbassadorRewardAwards", fields: [awardedById], references: [id])
+
+  @@index([ambassadorId])
+  @@index([serverId])
+  @@index([type])
+  @@index([period])
+  @@map("ambassador_rewards")
+}
+
+// Viral Metrics System
+
+enum ViralEventType {
+  SERVER_INVITE      // Server invited another server
+  USER_INVITE        // User invited another user  
+  GAME_SHARE         // Game shared to new server
+  CROSS_SERVER_PLAY  // User played game from different server
+  REFERRAL_SIGNUP    // User signed up via referral
+  VIRAL_MILESTONE    // Content reached viral threshold
+}
+
+model ViralEvent {
+  id          String         @id @default(cuid())
+  type        ViralEventType
+  sourceId    String         // Source server/user/game ID
+  targetId    String         // Target server/user ID
+  timestamp   DateTime       @default(now())
+  metadata    Json           @default("{}")
+  
+  // Analytics fields
+  converted   Boolean        @default(false) // Whether this led to actual growth
+  conversionValue Float      @default(0)     // Value of the conversion
+  
+  @@index([type])
+  @@index([sourceId])
+  @@index([targetId])
+  @@index([timestamp])
+  @@map("viral_events")
+}
+
+// Social Media Integration
+
+enum SocialPlatform {
+  TWITTER
+  TIKTOK
+  INSTAGRAM
+  YOUTUBE
+  FACEBOOK
+}
+
+model SocialMediaPost {
+  id          String         @id @default(cuid())
+  gameId      String         // Game that was posted about
+  platform    SocialPlatform
+  postId      String?        // Platform-specific post ID
+  url         String?        // Direct URL to the post
+  content     String         // Post content
+  mediaUrls   String[]       // URLs of images/videos posted
+  hashtags    String[]       // Hashtags used
+  mentions    String[]       // Users mentioned
+  
+  // Status and metrics
+  success     Boolean        @default(false)
+  error       String?        // Error message if failed
+  metrics     Json           @default("{}") // Platform-specific metrics
+  
+  // Auto-posting info
+  triggerType String?        // What triggered this post
+  isScheduled Boolean        @default(false)
+  
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  // Relations
+  game        Game           @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  
+  @@index([gameId])
+  @@index([platform])
+  @@index([success])
+  @@index([createdAt])
+  @@map("social_media_posts")
+}
+
+enum ScheduledPostStatus {
+  PENDING
+  POSTED
+  FAILED
+  CANCELLED
+}
+
+model ScheduledPost {
+  id          String                @id @default(cuid())
+  serverId    String                // Server that scheduled the post
+  platform    SocialPlatform
+  content     String
+  mediaUrls   String[]              @default([])
+  hashtags    String[]              @default([])
+  mentions    String[]              @default([])
+  
+  // Scheduling
+  scheduledAt DateTime
+  status      ScheduledPostStatus   @default(PENDING)
+  
+  // Execution details
+  postedAt    DateTime?
+  postId      String?               // Platform-specific post ID
+  postUrl     String?               // Direct URL to the posted content
+  error       String?               // Error message if failed
+  
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  
+  // Relations
+  server      Server                @relation("ScheduledPosts", fields: [serverId], references: [id], onDelete: Cascade)
+  
+  @@index([serverId])
+  @@index([platform])
+  @@index([scheduledAt])
+  @@index([status])
+  @@map("scheduled_posts")
+}
+
+// Server Settings for social media and other configurations
+model ServerSettings {
+  id                    String    @id @default(cuid())
+  serverId              String    @unique
+  socialMediaSettings   Json      @default("{}") // Auto-post settings and templates
+  analyticsSettings     Json      @default("{}") // Analytics preferences
+  notificationSettings  Json      @default("{}") // Notification preferences
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("server_settings")
+}
+
+// Content Creator Partnership System
+enum CreatorStatus {
+  PENDING       // Application submitted, awaiting review
+  APPROVED      // Approved and active creator
+  SUSPENDED     // Temporarily suspended
+  REJECTED      // Application rejected
+  INACTIVE      // Voluntarily inactive
+}
+
+enum CreatorTier {
+  BRONZE        // Entry level creator
+  SILVER        // Established creator
+  GOLD          // High-performing creator
+  PLATINUM      // Top-tier creator
+  DIAMOND       // Elite creator
+}
+
+enum ContentType {
+  YOUTUBE       // YouTube videos
+  TWITCH        // Twitch streams
+  TIKTOK        // TikTok content
+  INSTAGRAM     // Instagram posts/reels
+  TWITTER       // Twitter/X content
+  DISCORD       // Discord community content
+  BLOG          // Blog articles
+  PODCAST       // Podcast content
+}
+
+model CreatorPartnership {
+  id                    String         @id @default(cuid())
+  userId                String         @unique // Discord user ID
+  username              String         // Discord username
+  displayName           String?        // Preferred display name
+  
+  // Application details
+  status                CreatorStatus  @default(PENDING)
+  tier                  CreatorTier    @default(BRONZE)
+  appliedAt             DateTime       @default(now())
+  approvedAt            DateTime?
+  approvedById          String?        // Admin who approved
+  
+  // Creator information
+  bio                   String?        // Creator bio/description
+  primaryPlatform       ContentType    // Main content platform
+  platforms             Json           @default("[]") // Array of platforms
+  socialLinks           Json           @default("{}") // Social media links
+  
+  // Performance metrics
+  totalViews            Int            @default(0)
+  totalSubscribers      Int            @default(0)
+  avgViewsPerVideo      Int            @default(0)
+  engagementRate        Float          @default(0.0)
+  
+  // Partnership details
+  commissionRate        Float          @default(0.10) // 10% default
+  bonusMultiplier       Float          @default(1.0)  // Bonus earning multiplier
+  exclusiveContent      Boolean        @default(false) // Access to exclusive content
+  earlyAccess           Boolean        @default(false) // Early access to features
+  
+  // Earnings tracking
+  totalEarnings         Int            @default(0) // Total earnings in cents
+  currentMonthEarnings  Int            @default(0) // Current month earnings
+  lastPayoutAt          DateTime?      // Last payout date
+  
+  // Requirements tracking
+  minimumViews          Int            @default(1000) // Monthly minimum views
+  minimumContent        Int            @default(1)     // Monthly minimum content
+  contentRequirementMet Boolean        @default(true)  // Meeting content requirements
+  
+  // Metadata
+  applicationNotes      String?        // Notes from application
+  adminNotes            String?        // Internal admin notes
+  contractUrl           String?        // Link to signed contract
+  
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  
+  // Relations
+  user                  User           @relation("UserCreatorPartnership", fields: [userId], references: [discordId], onDelete: Cascade)
+  approvedBy            User?          @relation("CreatorApprovals", fields: [approvedById], references: [discordId])
+  content               CreatorContent[]
+  earnings              CreatorEarning[]
+  
+  @@index([status])
+  @@index([tier])
+  @@index([primaryPlatform])
+  @@map("creator_partnerships")
+}
+
+model CreatorContent {
+  id                    String            @id @default(cuid())
+  creatorId             String            // Creator who created content
+  
+  // Content details
+  title                 String
+  description           String?
+  contentType           ContentType
+  platform              String            // Platform name
+  contentUrl            String            // Link to content
+  thumbnailUrl          String?           // Thumbnail image
+  
+  // Performance metrics
+  views                 Int               @default(0)
+  likes                 Int               @default(0)
+  comments              Int               @default(0)
+  shares                Int               @default(0)
+  clickthrough          Int               @default(0) // Clicks to GameVibe AI
+  conversions           Int               @default(0) // New users/subscriptions
+  
+  // GameVibe AI integration
+  featuredGameIds       String[]          @default([]) // Games featured in content
+  referralCode          String?           // Unique referral code
+  customLandingPage     String?           // Custom landing page URL
+  
+  // Content verification
+  isVerified            Boolean           @default(false) // Verified by admin
+  verifiedAt            DateTime?
+  verifiedById          String?           // Admin who verified
+  
+  // Earnings
+  earningsGenerated     Int               @default(0) // Earnings in cents
+  commissionPaid        Int               @default(0) // Commission paid
+  
+  // Metadata
+  publishedAt           DateTime          @default(now())
+  lastUpdated           DateTime          @updatedAt
+  metadata              Json              @default("{}") // Additional metadata
+  
+  // Relations
+  creator               CreatorPartnership @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  verifiedBy            User?             @relation("ContentVerifications", fields: [verifiedById], references: [discordId])
+  
+  @@index([creatorId])
+  @@index([contentType])
+  @@index([publishedAt])
+  @@index([isVerified])
+  @@map("creator_content")
+}
+
+model CreatorEarning {
+  id                    String            @id @default(cuid())
+  creatorId             String            // Creator earning
+  
+  // Earning details
+  amount                Int               // Amount in cents
+  type                  String            // Earning type (referral, performance, bonus)
+  description           String            // Description of earning
+  
+  // Source tracking
+  sourceType            String            // What generated this earning
+  sourceId              String?           // ID of source (content, referral, etc.)
+  metadata              Json              @default("{}") // Additional data
+  
+  // Payout tracking
+  isPaid                Boolean           @default(false)
+  paidAt                DateTime?
+  payoutMethod          String?           // Payment method used
+  transactionId         String?           // External transaction ID
+  
+  // Dates
+  earnedAt              DateTime          @default(now())
+  periodStart           DateTime          // Start of earning period
+  periodEnd             DateTime          // End of earning period
+  
+  // Relations
+  creator               CreatorPartnership @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  
+  @@index([creatorId])
+  @@index([earnedAt])
+  @@index([isPaid])
+  @@index([type])
+  @@map("creator_earnings")
+}

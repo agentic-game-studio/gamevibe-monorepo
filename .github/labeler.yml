@@ -1,0 +1,56 @@
+# Configuration for PR labeler
+# Automatically adds labels based on file changes
+
+bot:
+  - packages/bot/**/*
+
+ai-service:
+  - packages/ai-service/**/*
+
+asset-generator:
+  - packages/asset-generator/**/*
+
+game-engine:
+  - packages/game-engine/**/*
+
+web-runtime:
+  - packages/web-runtime/**/*
+
+multiplayer:
+  - packages/multiplayer-server/**/*
+
+shared:
+  - packages/shared/**/*
+
+documentation:
+  - "**/*.md"
+  - docs/**/*
+
+docker:
+  - Dockerfile*
+  - docker-compose*.yml
+  - .dockerignore
+
+github-actions:
+  - .github/workflows/**/*
+  - .github/*.yml
+
+database:
+  - "**/prisma/**/*"
+  - "**/migrations/**/*"
+
+dependencies:
+  - package.json
+  - pnpm-lock.yaml
+  - "**/package.json"
+
+config:
+  - "**/*.config.*"
+  - .env*
+  - tsconfig*.json
+
+tests:
+  - "**/*.test.ts"
+  - "**/*.spec.ts"
+  - "**/tests/**/*"
+  - "**/__tests__/**/*"

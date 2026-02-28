@@ -1,0 +1,73 @@
+# Build stage
+FROM node:20-alpine AS builder
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Set working directory
+WORKDIR /app
+
+# Copy workspace files
+COPY pnpm-workspace.yaml .
+COPY package.json .
+COPY pnpm-lock.yaml .
+COPY tsconfig.json .
+COPY tsconfig.base.json .
+
+# Copy shared package
+COPY packages/shared/package.json packages/shared/
+COPY packages/shared packages/shared
+
+# Copy showcase portal package
+COPY packages/showcase-portal/package.json packages/showcase-portal/
+COPY packages/showcase-portal packages/showcase-portal
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Build shared package first
+RUN pnpm --filter @gamevibe/shared run build
+
+# Build showcase portal
+RUN pnpm --filter @gamevibe/showcase-portal run build
+
+# Production stage
+FROM node:20-alpine AS runner
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
+
+# Copy the full workspace structure for proper pnpm support
+COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy showcase portal standalone output
+COPY --from=builder /app/packages/showcase-portal/.next/standalone ./
+COPY --from=builder /app/packages/showcase-portal/.next/static ./packages/showcase-portal/.next/static
+COPY --from=builder /app/packages/showcase-portal/public ./packages/showcase-portal/public
+
+# Set environment to production
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Change ownership
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
+# Expose port
+EXPOSE 3002
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3002/api/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"
+
+# Start the standalone Next.js server
+CMD ["node", "packages/showcase-portal/server.js"]

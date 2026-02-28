@@ -1,0 +1,57 @@
+# GameVibe AI Code Owners
+# These owners will be the default owners for everything in the repo
+
+# Global owners
+* @gamevibe-team
+
+# Discord Bot
+/packages/bot/ @discord-team @backend-team
+/packages/bot/src/commands/ @discord-team
+/packages/bot/src/services/ @backend-team @ai-team
+/packages/bot/src/api/ @api-team @backend-team
+
+# AI Service
+/packages/ai-service/ @ai-team
+/packages/ai-service/src/generators/ @ai-team @game-design-team
+
+# Asset Generator
+/packages/asset-generator/ @ai-team @graphics-team
+
+# Game Engine
+/packages/game-engine/ @game-dev-team
+/packages/game-engine/src/templates/ @game-design-team
+
+# Web Runtime
+/packages/web-runtime/ @frontend-team
+/packages/web-runtime/src/components/ @frontend-team @ui-team
+
+# Multiplayer Server
+/packages/multiplayer-server/ @backend-team @game-dev-team
+
+# Shared packages
+/packages/shared/ @backend-team @frontend-team
+
+# Database
+/packages/bot/prisma/ @database-team @backend-team
+*.sql @database-team
+
+# Documentation
+*.md @docs-team
+/docs/ @docs-team
+
+# CI/CD and Infrastructure
+/.github/ @devops-team
+/Dockerfile* @devops-team
+/docker-compose*.yml @devops-team
+/.dockerignore @devops-team
+
+# Configuration files
+*.config.* @devops-team @backend-team
+.env* @devops-team
+tsconfig*.json @backend-team @frontend-team
+
+# Security-sensitive files
+/packages/bot/src/middleware/auth* @security-team
+/packages/bot/src/services/subscription* @security-team @payment-team
+/packages/bot/src/services/credit* @security-team @payment-team
+/packages/bot/src/api/stripe* @security-team @payment-team

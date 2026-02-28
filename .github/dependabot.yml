@@ -1,0 +1,135 @@
+version: 2
+updates:
+  # Enable version updates for npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    open-pull-requests-limit: 10
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+      development-dependencies:
+        dependency-type: "development"
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "eslint*"
+          - "prettier*"
+          - "@types/*"
+      types:
+        patterns:
+          - "@types/*"
+      linting:
+        patterns:
+          - "eslint*"
+          - "prettier*"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    reviewers:
+      - "gamevibe-team"
+    ignore:
+      # Ignore major version updates for critical dependencies
+      - dependency-name: "discord.js"
+        versions: ["15.x", "16.x"]
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "colyseus"
+        update-types: ["version-update:semver-major"]
+
+  # Enable version updates for Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "04:00"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "docker"
+      - "dependencies"
+      - "automated"
+    reviewers:
+      - "devops-team"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "04:00"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "github-actions"
+      - "ci"
+      - "automated"
+    reviewers:
+      - "devops-team"
+
+  # Package-specific configurations
+  - package-ecosystem: "npm"
+    directory: "/packages/bot"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "bot"
+      - "dependencies"
+    
+  - package-ecosystem: "npm"
+    directory: "/packages/ai-service"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "ai-service"
+      - "dependencies"
+    
+  - package-ecosystem: "npm"
+    directory: "/packages/asset-generator"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "asset-generator"
+      - "dependencies"
+    
+  - package-ecosystem: "npm"
+    directory: "/packages/game-engine"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "game-engine"
+      - "dependencies"
+    
+  - package-ecosystem: "npm"
+    directory: "/packages/web-runtime"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "web-runtime"
+      - "dependencies"
+    
+  - package-ecosystem: "npm"
+    directory: "/packages/multiplayer-server"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "multiplayer"
+      - "dependencies"
+    
+  - package-ecosystem: "npm"
+    directory: "/packages/shared"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "shared"
+      - "dependencies"

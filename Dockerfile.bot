@@ -1,0 +1,82 @@
+# GameVibe Bot Dockerfile
+FROM node:20-alpine AS base
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Set working directory
+WORKDIR /app
+
+# Copy configuration files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.json tsconfig.base.json ./
+COPY packages/bot/package.json ./packages/bot/
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/ai-service/package.json ./packages/ai-service/
+COPY packages/game-engine/package.json ./packages/game-engine/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY packages/shared ./packages/shared
+COPY packages/ai-service ./packages/ai-service  
+COPY packages/game-engine ./packages/game-engine
+COPY packages/bot ./packages/bot
+
+# Build shared packages first
+RUN pnpm --filter @gamevibe/shared build
+RUN pnpm --filter @gamevibe/ai-service build
+RUN pnpm --filter @gamevibe/game-engine build
+RUN pnpm --filter @gamevibe/bot build
+
+# Production stage
+FROM node:20-alpine AS production
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Add non-root user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S botuser -u 1001
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/bot/package.json ./packages/bot/
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/ai-service/package.json ./packages/ai-service/
+COPY packages/game-engine/package.json ./packages/game-engine/
+
+# Install production dependencies only
+RUN pnpm install --frozen-lockfile --prod
+
+# Copy built application
+COPY --from=base /app/packages/shared/dist ./packages/shared/dist
+COPY --from=base /app/packages/ai-service/dist ./packages/ai-service/dist
+COPY --from=base /app/packages/game-engine/dist ./packages/game-engine/dist
+COPY --from=base /app/packages/bot/dist ./packages/bot/dist
+
+# Copy Prisma files
+COPY --from=base /app/packages/bot/prisma ./packages/bot/prisma
+COPY --from=base /app/packages/bot/src/generated ./packages/bot/src/generated
+COPY --from=base /app/packages/bot/src/generated ./packages/bot/dist/generated
+
+# Set proper ownership
+RUN chown -R botuser:nodejs /app
+USER botuser
+
+# Expose monitoring port
+EXPOSE 8081
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD node -e "fetch('http://localhost:8081/health/live').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+
+# Set working directory to bot package
+WORKDIR /app/packages/bot
+
+# Run database migrations and start bot
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]

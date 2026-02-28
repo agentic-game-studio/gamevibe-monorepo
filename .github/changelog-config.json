@@ -1,0 +1,73 @@
+{
+  "categories": [
+    {
+      "title": "## 🚀 Features",
+      "labels": ["feat", "feature", "enhancement"]
+    },
+    {
+      "title": "## 🐛 Bug Fixes",
+      "labels": ["fix", "bug", "bugfix"]
+    },
+    {
+      "title": "## 🔧 Maintenance",
+      "labels": ["chore", "maintenance", "refactor"]
+    },
+    {
+      "title": "## 📚 Documentation",
+      "labels": ["docs", "documentation"]
+    },
+    {
+      "title": "## 🎨 Style",
+      "labels": ["style", "ui", "ux"]
+    },
+    {
+      "title": "## 🏗️ Infrastructure",
+      "labels": ["ci", "build", "infrastructure", "docker"]
+    },
+    {
+      "title": "## ⚡ Performance",
+      "labels": ["perf", "performance", "optimization"]
+    },
+    {
+      "title": "## 🧪 Tests",
+      "labels": ["test", "tests", "testing"]
+    },
+    {
+      "title": "## 🔒 Security",
+      "labels": ["security", "vulnerability"]
+    },
+    {
+      "title": "## ⬆️ Dependencies",
+      "labels": ["dependencies", "deps"]
+    }
+  ],
+  "ignore_labels": [
+    "ignore",
+    "invalid",
+    "duplicate",
+    "wontfix"
+  ],
+  "sort": "ASC",
+  "template": "${{CHANGELOG}}\n\n**Full Changelog**: ${{OWNER}}/${{REPO}}/compare/${{FROM_TAG}}...${{TO_TAG}}",
+  "pr_template": "- ${{TITLE}} by @${{AUTHOR}} in #${{NUMBER}}",
+  "empty_template": "- No changes",
+  "label_extractor": [
+    {
+      "pattern": "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\\(.+\\))?:",
+      "target": "$1"
+    }
+  ],
+  "duplicate_filter": {
+    "pattern": "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\\(.+\\))?:",
+    "on_property": "title",
+    "method": "match"
+  },
+  "reference": {
+    "pattern": ".*"
+  },
+  "trim_values": true,
+  "max_tags_to_fetch": 200,
+  "max_pull_requests": 200,
+  "max_back_track_time_days": 365,
+  "base_branches": ["main"]
+}

@@ -1,0 +1,52 @@
+{
+  "name": "gamevibe-ai",
+  "version": "0.1.0",
+  "description": "AI-powered Discord bot for creating games through natural language",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @gamevibe/* run dev",
+    "build": "pnpm --filter @gamevibe/* run build",
+    "test": "NODE_OPTIONS=\"--max-old-space-size=4096\" vitest run",
+    "test:watch": "NODE_OPTIONS=\"--max-old-space-size=4096\" vitest watch",
+    "test:coverage": "NODE_OPTIONS=\"--max-old-space-size=4096\" vitest run --coverage",
+    "test:integration": "NODE_OPTIONS=\"--max-old-space-size=4096\" vitest run --config vitest.config.integration.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:all": "pnpm run test && pnpm run test:integration && pnpm run test:e2e",
+    "lint": "pnpm --filter @gamevibe/* run lint",
+    "typecheck": "pnpm --filter @gamevibe/* run typecheck",
+    "clean": "pnpm --filter @gamevibe/* run clean"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "game",
+    "ai",
+    "phaser"
+  ],
+  "author": "GameVibe Team",
+  "license": "MIT",
+  "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0",
+    "@types/node": "^20.19.9",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@vitest/coverage-v8": "^1.6.1",
+    "@vitest/ui": "^1.6.1",
+    "cross-env": "^7.0.3",
+    "eslint": "^8.57.1",
+    "ioredis": "^5.4.1",
+    "playwright": "^1.47.0",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^1.6.1"
+  }
+}

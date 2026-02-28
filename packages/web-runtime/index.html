@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GameVibe - AI-Generated Games</title>
+  
+  <!-- Discord Activities SDK -->
+  <meta property="og:title" content="GameVibe - AI-Generated Games" />
+  <meta property="og:description" content="Play AI-generated games directly in Discord!" />
+  <meta property="og:image" content="/gamevibe-logo.png" />
+  
+  <!-- Preload critical resources -->
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js" as="script">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  
+  <!-- PWA manifest -->
+  <link rel="manifest" href="/manifest.json">
+  
+  <!-- Theme color for mobile browsers -->
+  <meta name="theme-color" content="#5865f2">
+  
+  <!-- Prevent zoom on mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <!-- Security headers -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self' https: http://localhost:*;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://discord.com;
+    connect-src 'self' https: wss: ws: http://localhost:* http://127.0.0.1:*;
+    img-src 'self' data: https: http://localhost:*;
+    font-src 'self' https:;
+    style-src 'self' 'unsafe-inline' https:;
+    media-src 'self' https: data:;
+  ">
+</head>
+<body>
+  <!-- Main game container -->
+  <div id="game-container">
+    <!-- Fallback content for when JavaScript is disabled -->
+    <noscript>
+      <div style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: white;
+        font-family: Arial, sans-serif;
+      ">
+        <div style="font-size: 2rem; margin-bottom: 1rem;">🎮</div>
+        <div style="font-size: 1.2rem; margin-bottom: 0.5rem;">GameVibe requires JavaScript</div>
+        <div style="font-size: 1rem; opacity: 0.8;">Please enable JavaScript to play games</div>
+      </div>
+    </noscript>
+  </div>
+
+  <!-- Loading indicator that shows immediately -->
+  <div id="initial-loader" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #1a1a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+  ">
+    <div style="text-align: center; color: white; font-family: Arial, sans-serif;">
+      <div style="
+        width: 50px;
+        height: 50px;
+        border: 4px solid #333;
+        border-top: 4px solid #5865f2;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+      "></div>
+      <div>Initializing GameVibe...</div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+
+  <!-- Main application script -->
+  <script type="module" src="/src/index-loader.ts"></script>
+  
+  <!-- Remove initial loader once app is ready -->
+  <script>
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const loader = document.getElementById('initial-loader');
+        if (loader) {
+          loader.style.opacity = '0';
+          loader.style.transition = 'opacity 0.5s';
+          setTimeout(() => loader.remove(), 500);
+        }
+      }, 1000);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/bot" },
+    { "path": "./packages/game-engine" },
+    { "path": "./packages/ai-service" },
+    { "path": "./packages/web-runtime" }
+  ]
+}

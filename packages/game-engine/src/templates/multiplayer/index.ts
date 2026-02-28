@@ -1,0 +1,1 @@
+export { multiplayerShooterTemplate } from './shooter.js';
