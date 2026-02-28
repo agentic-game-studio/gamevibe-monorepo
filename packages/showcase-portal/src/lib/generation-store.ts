@@ -26,6 +26,7 @@ interface GenerationState {
   steps: GenerationStep[];
   generatedGame: GeneratedGame | null;
   error: string | null;
+  errorType: 'network' | 'validation' | 'rate_limit' | 'unknown' | null;
   streamingContent: string;
 
   // Actions
@@ -34,7 +35,7 @@ interface GenerationState {
   updateStep: (stepId: string, updates: Partial<GenerationStep>) => void;
   setStreamingContent: (content: string) => void;
   setComplete: (game: GeneratedGame) => void;
-  setError: (error: string) => void;
+  setError: (error: string, type?: 'network' | 'validation' | 'rate_limit' | 'unknown') => void;
   reset: () => void;
 }
 
@@ -51,6 +52,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   steps: defaultSteps,
   generatedGame: null,
   error: null,
+  errorType: null,
   streamingContent: '',
 
   // Actions
@@ -107,7 +109,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
 
   setComplete: (game) => set({ generatedGame: game, status: 'complete' }),
 
-  setError: (error) => set({ error, status: 'error' }),
+  setError: (error, type = 'unknown') => set({ error, errorType: type, status: 'error' }),
 
   reset: () =>
     set({
@@ -116,6 +118,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       steps: defaultSteps,
       generatedGame: null,
       error: null,
+      errorType: null,
       streamingContent: '',
     }),
 }));

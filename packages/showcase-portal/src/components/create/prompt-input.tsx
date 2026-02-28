@@ -2,8 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiZap, FiArrowRight, FiCpu } from 'react-icons/fi';
+import { FiZap, FiArrowRight, FiCpu, FiInfo, FiCheck, FiX } from 'react-icons/fi';
 import { useGenerationStore } from '@/lib/generation-store';
+
+const MIN_PROMPT_LENGTH = 10;
+const MAX_PROMPT_LENGTH = 500;
 
 const examplePrompts = [
   // Action
@@ -30,7 +33,11 @@ export function PromptInput() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isGenerating = status !== 'idle' && status !== 'complete' && status !== 'error';
-  const canSubmit = prompt.trim().length > 0 && !isGenerating;
+  const promptLength = prompt.length;
+  const isTooShort = promptLength > 0 && promptLength < MIN_PROMPT_LENGTH;
+  const isTooLong = promptLength > MAX_PROMPT_LENGTH;
+  const isValid = promptLength >= MIN_PROMPT_LENGTH && promptLength <= MAX_PROMPT_LENGTH;
+  const canSubmit = isValid && !isGenerating;
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -112,6 +119,47 @@ export function PromptInput() {
               />
             </div>
           </div>
+
+          {/* Character Count & Validation */}
+          {(focused || promptLength > 0) && (
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-[oklch(var(--border))]">
+              <div className="flex items-center gap-4">
+                {/* Character count */}
+                <div className="flex items-center gap-1.5">
+                  <span className={`
+                    text-xs font-medium px-2 py-0.5 rounded-full
+                    ${isValid
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                      : isTooShort
+                        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400'
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                    }
+                  `}>
+                    {promptLength}/{MAX_PROMPT_LENGTH}
+                  </span>
+                  {isValid ? (
+                    <FiCheck className="h-3.5 w-3.5 text-green-500" />
+                  ) : isTooShort ? (
+                    <span className="text-xs text-yellow-600 dark:text-yellow-400">Min {MIN_PROMPT_LENGTH} chars</span>
+                  ) : (
+                    <FiX className="h-3.5 w-3.5 text-red-500" />
+                  )}
+                </div>
+              </div>
+
+              {/* Validation hint */}
+              {isTooShort && (
+                <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                  Add more details for better results
+                </p>
+              )}
+              {isTooLong && (
+                <p className="text-xs text-red-600 dark:text-red-400">
+                  Prompt is too long, please shorten it
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex items-center justify-between mt-4 pt-3 border-t border-[oklch(var(--border))]">
@@ -281,6 +329,28 @@ export function PromptInput() {
               ))}
             </div>
           </div>
+
+          {/* Tips */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="mt-6 p-4 rounded-xl bg-[oklch(var(--muted))]/30 border border-[oklch(var(--border))]"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-900/30">
+                <FiInfo className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+              </div>
+              <div>
+                <h4 className="font-medium text-sm mb-1">Tips for better games</h4>
+                <ul className="text-xs text-[oklch(var(--muted-foreground))] space-y-1">
+                  <li>• Be specific about game mechanics (e.g., "with power-ups and boss battles")</li>
+                  <li>• Mention the theme or setting (e.g., "space theme", "medieval fantasy")</li>
+                  <li>• Include difficulty level if desired (e.g., "easy to learn, hard to master")</li>
+                </ul>
+              </div>
+            </div>
+          </motion.div>
         </motion.div>
       )}
     </div>

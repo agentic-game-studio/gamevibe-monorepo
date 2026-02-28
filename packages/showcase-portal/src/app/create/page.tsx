@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { FiZap, FiArrowLeft } from 'react-icons/fi';
+import { FiZap, FiArrowLeft, FiCpu, FiTarget, FiUsers } from 'react-icons/fi';
 import Link from 'next/link';
 import { PromptInput } from '@/components/create/prompt-input';
 import { GenerationProgress } from '@/components/create/generation-progress';
@@ -141,6 +141,42 @@ class Game {
           <p className="text-lg text-[oklch(var(--muted-foreground))] max-w-2xl mx-auto">
             Describe your game idea in plain English, and our AI will generate a fully playable game in seconds.
           </p>
+        </motion.div>
+
+        {/* Features */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto mb-12"
+        >
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-[oklch(var(--card))] border border-[oklch(var(--border))]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-secondary-500 text-white">
+              <FiCpu className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-medium text-sm">AI-Powered</h3>
+              <p className="text-xs text-[oklch(var(--muted-foreground))]">Smart generation</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-[oklch(var(--card))] border border-[oklch(var(--border))]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+              <FiTarget className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-medium text-sm">Instant Play</h3>
+              <p className="text-xs text-[oklch(var(--muted-foreground))]">No setup needed</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-[oklch(var(--card))] border border-[oklch(var(--border))]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 text-white">
+              <FiUsers className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-medium text-sm">Shareable</h3>
+              <p className="text-xs text-[oklch(var(--muted-foreground))]">Play with friends</p>
+            </div>
+          </div>
         </motion.div>
 
         {/* Prompt Input */}
