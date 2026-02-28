@@ -67,6 +67,39 @@ pnpm --filter @gamevibe/web-runtime run dev       # Game runtime on http://local
 /leaderboard global
 ```
 
+## How AI Game Generation Works
+
+When you create a game, here's what happens:
+
+1. **User Input** - You describe your game idea via `/create-game` command or web form
+2. **AI Analysis** - MiniMax LLM analyzes your description and determines game type, mechanics, and requirements
+3. **Game Spec Generation** - AI generates a detailed game specification (player controls, enemies, objectives, scoring)
+4. **Code Generation** - Phaser 3 game code is generated from the spec
+5. **Asset Generation** - DALL-E 3 generates sprites, backgrounds, and UI elements
+6. **Game Ready** - Your playable game is created and stored
+
+The AI uses tool calling to:
+- Analyze game requirements from natural language
+- Generate complete game code with proper Phaser 3 patterns
+- Create game specifications that match your vision
+
+### Quick Create Flow
+
+```
+User: /create-game "A platformer where you jump on platforms and collect coins"
+
+    ↓
+Bot analyzes description → AI determines: Platformer game type
+    ↓
+AI generates game spec → "Player sprite, platforms, collectible coins, gravity physics"
+    ↓
+Code generated → Phaser 3 platformer template with your mechanics
+    ↓
+Assets created → Custom sprites via DALL-E 3
+    ↓
+Game ready! → Playable via Discord Activity or web portal
+```
+
 ## Supported Game Types
 
 | Type | Description |
@@ -191,3 +224,30 @@ For Discord Activities, deploy the web runtime publicly and configure the Activi
 ## License
 
 MIT License - see LICENSE file for details.
+
+## Ralph Autonomous Agent (Development)
+
+Ralph is an autonomous development agent for the **development team**, not for end users creating games. It automates feature development.
+
+### Running Ralph (For Developers)
+
+```bash
+# Run Ralph agent manually (single iteration)
+./ralph.sh
+
+# Or invoke via Claude Code
+claude --print --no-context "Working on GameVibe AI"
+```
+
+### Ralph Workflow
+
+1. Agent reads `prd.json` for pending user stories
+2. Agent checks `progress.txt` for codebase patterns
+3. Agent picks highest priority story, implements it
+4. Agent runs quality checks (typecheck, lint, test)
+5. Agent commits with `feat: [Story ID] - [Story Title]`
+6. Agent updates `prd.json` and appends to `progress.txt`
+
+See `CLAUDE.md` for full Ralph agent instructions.
+
+> **Note:** Ralph is separate from the game generation AI. End users create games using the MiniMax-powered AI (see "How AI Game Generation Works" above).
