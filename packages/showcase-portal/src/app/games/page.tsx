@@ -1,7 +1,6 @@
-import { Metadata } from 'next';
 import { GamesListing } from '@/components/games/games-listing';
 
-export const metadata: Metadata = {
+export const metadata = {
   title: 'Browse Games',
   description: 'Discover and play amazing AI-generated games created by the GameVibe community.',
 };

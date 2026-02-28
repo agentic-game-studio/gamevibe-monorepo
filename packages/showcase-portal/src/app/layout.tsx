@@ -1,12 +1,16 @@
-import type { Metadata } from 'next';
 import { Analytics } from '@vercel/analytics/react';
+import '@fontsource/geist/400.css';
+import '@fontsource/geist/500.css';
+import '@fontsource/geist/600.css';
+import '@fontsource/geist/700.css';
 import './globals.css';
 import { Providers } from '@/components/providers';
+import { ThemeProvider } from '@/components/theme-provider';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Toaster } from 'react-hot-toast';
 
-export const metadata: Metadata = {
+export const metadata = {
   title: {
     default: 'GameVibe AI - Create & Play AI-Generated Games',
     template: '%s | GameVibe AI',
@@ -64,18 +68,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        <Providers>
-          <div className="flex min-h-screen flex-col">
-            <Header />
-            <main className="flex-1">
-              {children}
-            </main>
-            <Footer />
-          </div>
-          <Toaster position="bottom-right" />
-        </Providers>
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen bg-[oklch(var(--background))] text-[oklch(var(--foreground))] antialiased">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange={false}
+        >
+          <Providers>
+            <div className="flex min-h-screen flex-col">
+              <Header />
+              <main className="flex-1">
+                {children}
+              </main>
+              <Footer />
+            </div>
+            <Toaster position="bottom-right" />
+          </Providers>
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>

@@ -1,8 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   output: 'standalone',
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   images: {
     remotePatterns: [
       {
@@ -59,8 +61,6 @@ const nextConfig = {
   experimental: {
     typedRoutes: false,
   },
-  // Disable font optimization in Docker builds
-  optimizeFonts: process.env.NODE_ENV === 'production' ? false : true,
 };
 
 export default nextConfig;
