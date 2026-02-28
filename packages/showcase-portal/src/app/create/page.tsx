@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { FiZap, FiArrowLeft } from 'react-icons/fi';
 import Link from 'next/link';
@@ -11,26 +11,29 @@ import { useGenerationStore } from '@/lib/generation-store';
 
 export default function CreatePage() {
   const { status, updateStep, setStreamingContent, setComplete } = useGenerationStore();
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Simulate AI generation process
   useEffect(() => {
     if (status === 'analyzing') {
-      // Simulate analyzing phase
+      // Phase 1: Analyzing (1.5s)
       const timer1 = setTimeout(() => {
         updateStep('analyzing', { status: 'complete', progress: 100 });
       }, 1500);
+      timersRef.current.push(timer1);
 
-      // Start generating phase
+      // Phase 2: Generating (starts at 2s)
       const timer2 = setTimeout(() => {
-        // Simulate streaming content
         const messages = [
           'Analyzing game mechanics...',
           'Creating player controls...',
           'Designing level structure...',
           'Adding enemy AI...',
+          'Implementing collision detection...',
         ];
         let messageIndex = 0;
 
+        // Stream messages
         const streamInterval = setInterval(() => {
           if (messageIndex < messages.length) {
             setStreamingContent(messages[messageIndex]);
@@ -39,25 +42,28 @@ export default function CreatePage() {
             clearInterval(streamInterval);
             updateStep('generating', { status: 'complete', progress: 100 });
           }
-        }, 800);
+        }, 600);
+        timersRef.current.push(setTimeout(() => clearInterval(streamInterval), 5000));
 
-        // Update progress
+        // Update generating progress
         let progress = 0;
         const progressInterval = setInterval(() => {
-          progress += Math.random() * 20;
+          progress += Math.random() * 25;
           if (progress >= 100) {
             clearInterval(progressInterval);
           } else {
             updateStep('generating', { progress: Math.min(progress, 99) });
           }
-        }, 500);
-      }, 2000);
+        }, 400);
+        timersRef.current.push(setTimeout(() => clearInterval(progressInterval), 3500));
+      }, 1800);
+      timersRef.current.push(timer2);
 
-      // Start building phase
+      // Phase 3: Building (starts at 7s)
       const timer3 = setTimeout(() => {
         let progress = 0;
         const progressInterval = setInterval(() => {
-          progress += Math.random() * 25;
+          progress += Math.random() * 33;
           if (progress >= 100) {
             clearInterval(progressInterval);
             updateStep('building', { status: 'complete', progress: 100 });
@@ -94,15 +100,17 @@ class Game {
           } else {
             updateStep('building', { progress: Math.min(progress, 99) });
           }
-        }, 400);
-      }, 6000);
-
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-        clearTimeout(timer3);
-      };
+        }, 300);
+        timersRef.current.push(setTimeout(() => clearInterval(progressInterval), 3000));
+      }, 7000);
+      timersRef.current.push(timer3);
     }
+
+    // Cleanup all timers on unmount or status change
+    return () => {
+      timersRef.current.forEach(timer => clearTimeout(timer));
+      timersRef.current = [];
+    };
   }, [status, updateStep, setStreamingContent, setComplete]);
 
   return (
