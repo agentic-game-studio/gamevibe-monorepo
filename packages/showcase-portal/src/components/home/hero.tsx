@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { FiPlay, FiArrowRight, FiZap, FiUsers, FiTrendingUp } from 'react-icons/fi';
+import { FiPlay, FiArrowRight, FiZap, FiUsers, FiTrendingUp, FiGlobe } from 'react-icons/fi';
 import { useState, useEffect, useMemo } from 'react';
 
 const stats = [
@@ -12,14 +12,13 @@ const stats = [
 ];
 
 const floatingGames = [
-  { id: 1, title: 'Space Shooter', type: 'Shooter', color: 'from-purple-400 to-pink-400' },
-  { id: 2, title: 'Pixel Quest', type: 'Platformer', color: 'from-blue-400 to-cyan-400' },
-  { id: 3, title: 'Puzzle Master', type: 'Puzzle', color: 'from-green-400 to-emerald-400' },
-  { id: 4, title: 'Racing Pro', type: 'Racing', color: 'from-orange-400 to-red-400' },
-  { id: 5, title: 'RPG Adventure', type: 'RPG', color: 'from-indigo-400 to-purple-400' },
+  { id: 1, title: 'Space Shooter', type: 'Shooter', color: 'from-purple-500 to-pink-500' },
+  { id: 2, title: 'Pixel Quest', type: 'Platformer', color: 'from-blue-500 to-cyan-500' },
+  { id: 3, title: 'Puzzle Master', type: 'Puzzle', color: 'from-emerald-500 to-teal-500' },
+  { id: 4, title: 'Racing Pro', type: 'Racing', color: 'from-orange-500 to-red-500' },
+  { id: 5, title: 'RPG Adventure', type: 'RPG', color: 'from-indigo-500 to-purple-500' },
 ];
 
-// Deterministic positions to avoid hydration mismatch
 const deterministicPositions = [
   { x: 200, y: 150 },
   { x: 850, y: 80 },
@@ -42,7 +41,6 @@ export function Hero() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // Memoize floating game positions to ensure consistency
   const gamePositions = useMemo(() => {
     return floatingGames.map((game, index) => ({
       ...game,
@@ -52,14 +50,20 @@ export function Hero() {
   }, []);
 
   return (
-    <section className="relative overflow-hidden">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-5"></div>
+    <section className="relative overflow-hidden min-h-screen flex items-center">
+      {/* Premium Background */}
+      <div className="absolute inset-0 bg-[#0a0a0f]">
+        {/* Grid Pattern */}
+        <div className="absolute inset-0 bg-grid opacity-50" />
+
+        {/* Radial Glows */}
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary-500/10 rounded-full blur-[150px]" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-secondary-500/8 rounded-full blur-[120px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-500/5 rounded-full blur-[150px]" />
       </div>
 
       {/* Floating Game Cards */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {gamePositions.map((game, index) => (
           <motion.div
             key={game.id}
@@ -69,8 +73,8 @@ export function Hero() {
               y: game.initialY,
             }}
             animate={{
-              x: isMounted ? mousePosition.x * 0.02 * (index % 2 === 0 ? 1 : -1) : game.initialX,
-              y: isMounted ? mousePosition.y * 0.02 * (index % 2 === 0 ? -1 : 1) : game.initialY,
+              x: isMounted ? mousePosition.x * 0.015 * (index % 2 === 0 ? 1 : -1) + game.initialX : game.initialX,
+              y: isMounted ? mousePosition.y * 0.015 * (index % 2 === 0 ? -1 : 1) + game.initialY : game.initialY,
             }}
             transition={{
               type: 'spring',
@@ -79,28 +83,30 @@ export function Hero() {
             }}
           >
             <div
-              className={`rounded-xl bg-gradient-to-br ${game.color} p-4 opacity-10 blur-2xl`}
+              className={`rounded-2xl bg-gradient-to-br ${game.color} p-6 opacity-20 blur-3xl`}
               style={{
-                width: `${150 + index * 20}px`,
-                height: `${150 + index * 20}px`,
+                width: `${180 + index * 25}px`,
+                height: `${180 + index * 25}px`,
               }}
             />
           </motion.div>
         ))}
       </div>
 
-      <div className="container relative z-10 py-20 lg:py-32">
+      <div className="container relative z-10 py-32">
         <div className="mx-auto max-w-4xl text-center">
           {/* Announcement Badge */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="mb-8 inline-flex items-center gap-2 rounded-full bg-primary-100 px-4 py-2 text-sm font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+            className="mb-8 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-900/60 border border-zinc-800"
           >
-            <FiZap className="h-4 w-4" />
-            <span>New: Viral Growth System with Personal Credits</span>
-            <FiArrowRight className="h-4 w-4" />
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="text-sm font-medium text-zinc-400">New: Viral Growth System</span>
           </motion.div>
 
           {/* Main Headline */}
@@ -108,10 +114,14 @@ export function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="mb-6 text-5xl font-bold leading-tight tracking-tight text-gray-900 dark:text-white lg:text-6xl xl:text-7xl"
+            className="mb-6 text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight"
           >
-            Create Amazing Games with{' '}
-            <span className="text-gradient">AI-Powered Magic</span>
+            <span className="text-white">Create </span>
+            <span className="bg-gradient-to-r from-primary-400 via-secondary-400 to-purple-400 bg-clip-text text-transparent">
+              Amazing Games
+            </span>
+            <br />
+            <span className="text-white">with AI Magic</span>
           </motion.h1>
 
           {/* Subheadline */}
@@ -119,7 +129,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="mb-10 text-lg text-gray-600 dark:text-gray-300 lg:text-xl"
+            className="mb-10 text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed"
           >
             Transform your ideas into playable games using natural language.
             No coding required. Play directly in Discord with friends.
@@ -133,20 +143,19 @@ export function Hero() {
             className="flex flex-col items-center justify-center gap-4 sm:flex-row"
           >
             <Link
+              href="/create"
+              className="flex items-center gap-2.5 px-8 py-3.5 rounded-xl font-medium bg-gradient-to-r from-primary-600 to-secondary-600 text-white hover:shadow-lg hover:shadow-primary-500/25 hover:scale-[1.02] transition-all"
+            >
+              <FiZap className="h-5 w-5" />
+              Create Your Game
+              <FiArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
               href="/games"
-              className="btn btn-primary px-8 py-3 text-base"
+              className="flex items-center gap-2.5 px-8 py-3.5 rounded-xl font-medium border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:border-zinc-600 transition-all"
             >
               <FiPlay className="h-5 w-5" />
               Explore Games
-            </Link>
-            <Link
-              href={`https://discord.com/oauth2/authorize?client_id=${process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || 'YOUR_CLIENT_ID'}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-outline px-8 py-3 text-base"
-            >
-              Add to Discord
-              <FiArrowRight className="h-5 w-5" />
             </Link>
           </motion.div>
 
@@ -155,19 +164,21 @@ export function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
-            className="mt-16 grid grid-cols-3 gap-8 lg:gap-16"
+            className="mt-20 grid grid-cols-3 gap-8 lg:gap-16"
           >
             {stats.map((stat) => {
               const Icon = stat.icon;
               return (
                 <div key={stat.label} className="text-center">
-                  <div className="mb-2 flex justify-center">
-                    <Icon className="h-6 w-6 text-primary-600 dark:text-primary-400" />
+                  <div className="mb-3 flex justify-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900/60 border border-zinc-800">
+                      <Icon className="h-6 w-6 text-primary-400" />
+                    </div>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white lg:text-3xl">
+                  <div className="text-2xl md:text-3xl font-bold text-white">
                     {stat.value}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-sm text-zinc-500 mt-1">
                     {stat.label}
                   </div>
                 </div>

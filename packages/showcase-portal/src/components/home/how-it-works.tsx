@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { FiMessageSquare, FiZap, FiPlay, FiDollarSign } from 'react-icons/fi';
+import { FiMessageSquare, FiZap, FiPlay, FiDollarSign, FiArrowRight } from 'react-icons/fi';
 
 const steps = [
   {
@@ -24,7 +24,7 @@ const steps = [
     title: 'Play with Friends',
     description: 'Launch your game directly in Discord. Friends can join instantly without downloads.',
     icon: FiPlay,
-    color: 'from-green-500 to-emerald-500',
+    color: 'from-emerald-500 to-teal-500',
   },
   {
     number: '04',
@@ -46,34 +46,34 @@ function StepCard({ step, index }: { step: typeof steps[0]; index: number }) {
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 50 }}
-      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-      transition={{ duration: 0.5, delay: index * 0.2 }}
+      initial={{ opacity: 0, y: 30 }}
+      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+      transition={{ duration: 0.5, delay: index * 0.15 }}
       className="relative"
     >
       {/* Connection Line */}
       {index < steps.length - 1 && (
-        <div className="absolute left-1/2 top-24 hidden h-full w-0.5 -translate-x-1/2 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-700 lg:block" />
+        <div className="absolute left-1/2 top-20 hidden h-full w-px -translate-x-1/2 bg-gradient-to-b from-zinc-800 via-zinc-700 to-transparent lg:block" />
       )}
 
       <div className="group relative">
         {/* Step Number */}
-        <div className="absolute -left-4 -top-4 text-6xl font-bold text-gray-100 dark:text-gray-800">
+        <div className="absolute -left-2 -top-6 text-7xl font-bold text-zinc-900">
           {step.number}
         </div>
 
         {/* Card */}
-        <div className="relative z-10 rounded-2xl bg-white p-8 shadow-lg transition-all duration-300 hover:shadow-2xl dark:bg-gray-800">
+        <div className="relative z-10 rounded-2xl bg-zinc-900/40 border border-zinc-800 p-6 transition-all duration-300 hover:border-zinc-700 hover:shadow-lg hover:shadow-primary-500/5">
           {/* Icon */}
-          <div className={`mb-6 inline-flex rounded-xl bg-gradient-to-br ${step.color} p-4 text-white shadow-lg`}>
-            <Icon className="h-8 w-8" />
+          <div className={`mb-5 inline-flex rounded-xl bg-gradient-to-br ${step.color} p-3.5 shadow-lg`}>
+            <Icon className="h-6 w-6 text-white" />
           </div>
 
           {/* Content */}
-          <h3 className="mb-3 text-xl font-bold text-gray-900 dark:text-white">
+          <h3 className="mb-2 text-lg font-semibold text-white">
             {step.title}
           </h3>
-          <p className="text-gray-600 dark:text-gray-300">
+          <p className="text-sm text-zinc-500 leading-relaxed">
             {step.description}
           </p>
         </div>
@@ -84,26 +84,30 @@ function StepCard({ step, index }: { step: typeof steps[0]; index: number }) {
 
 export function HowItWorks() {
   return (
-    <section className="py-20 lg:py-24">
-      <div className="container">
+    <section className="py-20 lg:py-24 relative">
+      {/* Background */}
+      <div className="absolute inset-0 bg-[#0a0a0f]" />
+      <div className="absolute inset-0 bg-grid opacity-30" />
+
+      <div className="container relative z-10">
         <div className="mb-16 text-center">
-          <h2 className="mb-4 text-3xl font-bold text-gray-900 dark:text-white lg:text-4xl">
+          <h2 className="mb-4 text-3xl md:text-4xl font-bold text-white">
             How It Works
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300">
+          <p className="text-lg text-zinc-400">
             From idea to playable game in minutes
           </p>
         </div>
 
         <div className="mx-auto max-w-5xl">
-          <div className="grid gap-12 lg:grid-cols-4 lg:gap-8">
+          <div className="grid gap-8 lg:grid-cols-4 lg:gap-6">
             {steps.map((step, index) => (
               <StepCard key={step.number} step={step} index={index} />
             ))}
           </div>
         </div>
 
-        {/* Demo Video Placeholder */}
+        {/* Demo/CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -111,13 +115,22 @@ export function HowItWorks() {
           viewport={{ once: true }}
           className="mt-20"
         >
-          <div className="relative mx-auto max-w-4xl overflow-hidden rounded-2xl bg-gradient-to-br from-primary-100 to-secondary-100 dark:from-primary-900/20 dark:to-secondary-900/20">
+          <div className="relative mx-auto max-w-4xl overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-800 border border-zinc-800">
             <div className="aspect-video flex items-center justify-center">
-              <div className="text-center">
-                <FiPlay className="mx-auto mb-4 h-16 w-16 text-primary-600 dark:text-primary-400" />
-                <p className="text-lg font-medium text-gray-700 dark:text-gray-300">
-                  Watch a 2-minute demo
+              <div className="text-center px-4">
+                <div className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center shadow-lg shadow-primary-500/25">
+                  <FiZap className="h-10 w-10 text-white" />
+                </div>
+                <p className="text-lg font-medium text-white mb-4">
+                  Ready to create your first game?
                 </p>
+                <a
+                  href="/create"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium bg-gradient-to-r from-primary-600 to-secondary-600 text-white hover:shadow-lg hover:shadow-primary-500/25 transition-all"
+                >
+                  Start Creating
+                  <FiArrowRight className="h-4 w-4" />
+                </a>
               </div>
             </div>
           </div>
