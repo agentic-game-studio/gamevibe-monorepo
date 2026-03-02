@@ -51,3 +51,8 @@ tmp/
 # Package manager
 .npm/
 .yarn/
+/packages/showcase-portal/.next
+/packages/showcase-portal/.next
+/.claude
+/.claude
+.next/
