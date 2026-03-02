@@ -1,1 +1,0 @@
-self.__NEXT_FONT_MANIFEST='{"pages":{},"app":{"/Users/choguun/Documents/workspaces/cool-projects/gamevibe-ai/packages/showcase-portal/src/app/layout":["static/media/e4af272ccee01ff0-s.p.woff2","static/media/c7f848bed9dd25a3-s.p.woff2"]},"appUsingSizeAdjust":true,"pagesUsingSizeAdjust":false}';
