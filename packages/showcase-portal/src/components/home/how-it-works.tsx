@@ -86,7 +86,7 @@ export function HowItWorks() {
   return (
     <section className="py-20 lg:py-24 relative">
       {/* Background */}
-      <div className="absolute inset-0 bg-[#0a0a0f]" />
+      <div className="absolute inset-0 bg-[oklch(var(--background))]" />
       <div className="absolute inset-0 bg-grid opacity-30" />
 
       <div className="container relative z-10">

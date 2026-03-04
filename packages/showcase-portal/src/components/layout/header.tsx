@@ -19,7 +19,7 @@ export function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-zinc-800/60 bg-[#0a0a0f]/80 backdrop-blur-xl">
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-[oklch(var(--border))]/60 bg-[oklch(var(--background))]/80 backdrop-blur-xl">
       <div className="container">
         <nav className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -106,7 +106,7 @@ export function Header() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="border-t border-zinc-800 bg-[#0a0a0f]/95 backdrop-blur-xl md:hidden"
+            className="border-t border-[oklch(var(--border))] bg-[oklch(var(--background))]/95 backdrop-blur-xl md:hidden"
           >
             <div className="container py-4">
               <div className="flex flex-col gap-2">

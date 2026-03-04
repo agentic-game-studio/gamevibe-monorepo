@@ -52,7 +52,7 @@ export function Hero() {
   return (
     <section className="relative overflow-hidden min-h-screen flex items-center">
       {/* Premium Background */}
-      <div className="absolute inset-0 bg-[#0a0a0f]">
+      <div className="absolute inset-0 bg-[oklch(var(--background))]">
         {/* Grid Pattern */}
         <div className="absolute inset-0 bg-grid opacity-50" />
 

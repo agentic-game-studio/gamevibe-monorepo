@@ -17,7 +17,7 @@ export function CallToAction() {
   return (
     <section className="relative overflow-hidden py-20 lg:py-32">
       {/* Background */}
-      <div className="absolute inset-0 bg-[#0a0a0f]" />
+      <div className="absolute inset-0 bg-[oklch(var(--background))]" />
       <div className="absolute inset-0 bg-grid opacity-30" />
       <div className="absolute inset-0 bg-gradient-to-br from-primary-900/20 via-transparent to-secondary-900/20" />
 

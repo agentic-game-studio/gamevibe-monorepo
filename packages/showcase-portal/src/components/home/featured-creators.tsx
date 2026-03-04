@@ -128,7 +128,7 @@ export function FeaturedCreators() {
   return (
     <section className="py-20 relative">
       {/* Background */}
-      <div className="absolute inset-0 bg-[#0a0a0f]">
+      <div className="absolute inset-0 bg-[oklch(var(--background))]">
         <div className="absolute inset-0 bg-grid opacity-30" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[120px]" />
       </div>

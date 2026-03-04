@@ -97,7 +97,7 @@ class Game {
       {/* Premium Background */}
       <div className="fixed inset-0 pointer-events-none">
         {/* Base gradient */}
-        <div className="absolute inset-0 bg-[#0a0a0f]" />
+        <div className="absolute inset-0 bg-[oklch(var(--background))]" />
 
         {/* Grid pattern */}
         <div

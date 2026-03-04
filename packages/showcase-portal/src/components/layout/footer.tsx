@@ -33,7 +33,7 @@ export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="mt-20 border-t border-zinc-800 bg-[#0a0a0f]">
+    <footer className="mt-20 border-t border-[oklch(var(--border))] bg-[oklch(var(--background))]">
       <div className="container py-12">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:grid-cols-5">
           {/* Brand Column */}
