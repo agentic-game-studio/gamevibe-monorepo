@@ -1,5 +1,5 @@
 import { injectable } from 'inversify';
-import { PrismaClient } from '../generated/client.js';
+import { PrismaClient } from '../generated/prisma/index.js';
 import { User, Server, Game, GameSession, LeaderboardEntry, GameType } from '@gamevibe/shared';
 
 @injectable()

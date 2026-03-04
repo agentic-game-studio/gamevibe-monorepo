@@ -126,10 +126,11 @@ export class DalleGenerator extends BaseAssetGenerator {
       })
     );
 
-    const imageUrl = response.data[0].url;
-    if (!imageUrl) {
+    const imageData = response.data?.[0];
+    if (!imageData?.url) {
       throw new Error('No image URL returned from DALL-E');
     }
+    const imageUrl = imageData.url;
 
     // Download the image
     const imageBuffer = await this.downloadImage(imageUrl);

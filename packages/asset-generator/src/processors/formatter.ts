@@ -26,7 +26,7 @@ export class ImageFormatter {
   }> {
     const image = sharp(buffer);
     const metadata = await image.metadata();
-    const hasAlpha = metadata.channels === 4 || metadata.channels === 2;
+    const hasAlpha = (metadata.channels ?? 0) >= 2;
 
     let converted: Buffer;
 
@@ -102,7 +102,7 @@ export class ImageFormatter {
     const metadata = await image.metadata();
 
     // Already has alpha channel
-    if (metadata.channels === 4 || metadata.channels === 2) {
+    if ((metadata.channels ?? 0) >= 2) {
       return buffer;
     }
 
@@ -142,7 +142,7 @@ export class ImageFormatter {
     return {
       format: metadata.format || 'unknown',
       mimeType: formatMap[metadata.format || ''] || 'application/octet-stream',
-      hasAlpha: metadata.channels === 4 || metadata.channels === 2,
+      hasAlpha: (metadata.channels ?? 0) >= 2,
       isAnimated: metadata.pages ? metadata.pages > 1 : false
     };
   }
@@ -191,7 +191,7 @@ export class ImageFormatter {
       format: metadata.format || 'unknown',
       size: buffer.length,
       aspectRatio: (metadata.width || 0) / (metadata.height || 1),
-      hasAlpha: metadata.channels === 4 || metadata.channels === 2,
+      hasAlpha: (metadata.channels ?? 0) >= 2,
       colorSpace: metadata.space || 'unknown',
       density: metadata.density
     };
