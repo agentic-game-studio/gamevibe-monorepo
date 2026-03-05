@@ -11,9 +11,9 @@ const stepIcons = {
 };
 
 const stepColors = {
-  analyzing: 'from-blue-500 to-cyan-500',
-  generating: 'from-purple-500 to-pink-500',
-  building: 'from-emerald-500 to-teal-500',
+  analyzing: 'from-[#ff6b35] to-[#f7c548]',
+  generating: 'from-[#8b5cf6] to-[#a78bfa]',
+  building: 'from-[#10b981] to-[#34d399]',
 };
 
 export function GenerationProgress() {
@@ -32,7 +32,7 @@ export function GenerationProgress() {
     >
       <div className="relative">
         {/* Connection line */}
-        <div className="absolute left-6 top-8 bottom-8 w-px bg-gradient-to-b from-zinc-800 via-zinc-700 to-zinc-800" />
+        <div className="absolute left-6 top-8 bottom-8 w-px bg-gradient-to-b from-[#5c4410] via-[#5c4410]/50 to-[#5c4410]" />
 
         {/* Steps */}
         <div className="space-y-6">
@@ -56,10 +56,10 @@ export function GenerationProgress() {
                     relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl
                     transition-all duration-300
                     ${isComplete
-                      ? 'bg-emerald-500 text-white'
+                      ? 'bg-[#10b981] text-white'
                       : isActive
-                        ? `bg-gradient-to-br ${gradient} text-white shadow-lg shadow-primary-500/25`
-                        : 'bg-zinc-800 text-zinc-500'
+                        ? `bg-gradient-to-br ${gradient} text-white shadow-lg shadow-[#ff6b35]/25`
+                        : 'bg-[#1a1425] text-[#a89585] border border-[#5c4410]'
                     }
                   `}
                 >
@@ -82,8 +82,8 @@ export function GenerationProgress() {
                       className={`absolute inset-0 rounded-xl bg-gradient-to-br ${gradient}`}
                       animate={{
                         boxShadow: [
-                          '0 0 0 0 rgba(14, 165, 233, 0.4)',
-                          '0 0 0 12px rgba(14, 165, 233, 0)',
+                          '0 0 0 0 rgba(255, 107, 53, 0.4)',
+                          '0 0 0 12px rgba(255, 107, 53, 0)',
                         ],
                       }}
                       transition={{
@@ -101,20 +101,20 @@ export function GenerationProgress() {
                       font-semibold text-base
                       ${isActive || isComplete
                         ? 'text-white'
-                        : 'text-zinc-500'
+                        : 'text-[#a89585]'
                       }
                     `}
                   >
                     {step.title}
                   </h3>
-                  <p className="text-sm text-zinc-500 mt-0.5">
+                  <p className="text-sm text-[#a89585] mt-0.5">
                     {step.description}
                   </p>
 
                   {/* Progress bar */}
                   {isActive && (
                     <motion.div
-                      className="mt-3 h-1.5 rounded-full bg-zinc-800 overflow-hidden"
+                      className="mt-3 h-1.5 rounded-full bg-[#1a1425] overflow-hidden border border-[#5c4410]"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                     >
@@ -142,16 +142,16 @@ export function GenerationProgress() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="mt-6 p-4 rounded-xl bg-zinc-900/60 border border-zinc-800"
+              className="mt-6 p-4 rounded-xl bg-[#1a1425]/60 border border-[#5c4410]"
             >
-              <p className="text-xs text-zinc-500 mb-2 uppercase tracking-wider flex items-center gap-2">
+              <p className="text-xs text-[#ffd700] mb-2 uppercase tracking-wider flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ff6b35] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ff6b35]"></span>
                 </span>
                 AI is thinking...
               </p>
-              <pre className="text-sm text-zinc-300 font-mono whitespace-pre-wrap line-clamp-3">
+              <pre className="text-sm text-white font-mono whitespace-pre-wrap line-clamp-3">
                 {streamingContent}
               </pre>
             </motion.div>

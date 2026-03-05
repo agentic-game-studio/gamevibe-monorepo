@@ -1,64 +1,21 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { FiArrowRight, FiZap } from 'react-icons/fi';
+import { FiArrowRight, FiZap, FiGrid } from 'react-icons/fi';
 import { FaDiscord } from 'react-icons/fa';
-
-const floatingElements = [
-  { x: 150, y: 120, size: 256 },
-  { x: 900, y: 200, size: 192 },
-  { x: 1600, y: 100, size: 224 },
-  { x: 500, y: 500, size: 288 },
-  { x: 1400, y: 450, size: 176 },
-];
 
 export function CallToAction() {
   return (
-    <section className="relative overflow-hidden py-20 lg:py-32">
-      {/* Background */}
-      <div className="absolute inset-0 bg-[oklch(var(--background))]" />
-      <div className="absolute inset-0 bg-grid opacity-30" />
-      <div className="absolute inset-0 bg-gradient-to-br from-primary-900/20 via-transparent to-secondary-900/20" />
-
-      {/* Floating Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {floatingElements.map((el, i) => (
-          <motion.div
-            key={i}
-            className="absolute rounded-full bg-primary-500/5"
-            style={{
-              width: el.size,
-              height: el.size,
-            }}
-            initial={{
-              x: el.x,
-              y: el.y,
-            }}
-            animate={{
-              x: [el.x, el.x + 50, el.x - 30, el.x],
-              y: [el.y, el.y - 40, el.y + 20, el.y],
-            }}
-            transition={{
-              duration: 20 + i * 5,
-              repeat: Infinity,
-              repeatType: 'reverse',
-              ease: 'linear',
-            }}
-          />
-        ))}
-      </div>
+    <section className="relative overflow-hidden pb-16 lg:pb-24">
+      {/* Background - Theme colors */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#1a1425] via-[#2d1f3d] to-[#1a1425]" />
+      <div className="absolute inset-0 bg-grid opacity-20" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#ff6b35]/5 rounded-full blur-[150px]" />
 
       <div className="container relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          viewport={{ once: true }}
-          className="mx-auto max-w-3xl text-center"
-        >
+        <div className="mx-auto max-w-3xl text-center">
           {/* Badge */}
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full bg-zinc-900/60 border border-zinc-800 px-4 py-2 text-sm font-medium text-zinc-400">
+          <div className="mb-8 inline-flex items-center gap-2 rounded-full bg-[#1a1425]/60 border border-[#5c4410] px-4 py-2 text-sm font-medium text-[#ffd700]">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -72,7 +29,7 @@ export function CallToAction() {
           </h2>
 
           {/* Description */}
-          <p className="mb-10 text-lg text-zinc-400 lg:text-xl max-w-xl mx-auto">
+          <p className="mb-10 text-lg text-[#a89585] lg:text-xl max-w-xl mx-auto">
             Start creating amazing games with AI today. No coding required.
             Add GameVibe to your Discord server and unleash your creativity.
           </p>
@@ -92,10 +49,18 @@ export function CallToAction() {
 
             <Link
               href="/create"
-              className="inline-flex items-center gap-2.5 rounded-xl border border-zinc-700 bg-zinc-800/50 px-8 py-3.5 text-base font-medium text-white backdrop-blur-sm transition-all hover:bg-zinc-800 hover:border-zinc-600"
+              className="inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#ff6b35] to-[#f7c548] px-8 py-3.5 text-base font-medium text-[#1a1425] transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-[#ff6b35]/30"
             >
               <FiZap className="h-5 w-5" />
               Create Game
+            </Link>
+
+            <Link
+              href="/create#pick-a-template"
+              className="inline-flex items-center gap-2.5 rounded-xl border-2 border-[#5c4410] bg-[#1a1425]/50 px-8 py-3.5 text-base font-medium text-[#ffd700] backdrop-blur-sm transition-all hover:bg-[#5c4410]/30 hover:border-[#ffd700]"
+            >
+              <FiGrid className="h-5 w-5" />
+              Pick a Template
             </Link>
           </div>
 
@@ -103,20 +68,20 @@ export function CallToAction() {
           <div className="mt-12 flex flex-col items-center justify-center gap-6 sm:flex-row">
             <div className="text-center">
               <div className="text-2xl font-bold text-white">50,000+</div>
-              <div className="text-sm text-zinc-500">Games Created</div>
+              <div className="text-sm text-[#a89585]">Games Created</div>
             </div>
-            <div className="hidden h-8 w-px bg-zinc-800 sm:block"></div>
+            <div className="hidden h-8 w-px bg-[#5c4410] sm:block"></div>
             <div className="text-center">
               <div className="text-2xl font-bold text-white">5,000+</div>
-              <div className="text-sm text-zinc-500">Discord Servers</div>
+              <div className="text-sm text-[#a89585]">Discord Servers</div>
             </div>
-            <div className="hidden h-8 w-px bg-zinc-800 sm:block"></div>
+            <div className="hidden h-8 w-px bg-[#5c4410] sm:block"></div>
             <div className="text-center">
               <div className="text-2xl font-bold text-white">100,000+</div>
-              <div className="text-sm text-zinc-500">Daily Players</div>
+              <div className="text-sm text-[#a89585]">Daily Players</div>
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

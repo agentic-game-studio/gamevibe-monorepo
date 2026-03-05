@@ -1,15 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMenu, FiX, FiPlay, FiUsers, FiAward, FiInfo, FiPlus, FiZap, FiGlobe } from 'react-icons/fi';
+import { FiMenu, FiX, FiPlay, FiUsers, FiAward, FiInfo, FiPlus, FiZap, FiGlobe, FiLogIn, FiStar } from 'react-icons/fi';
 import { clsx } from 'clsx';
 
 const navigation = [
   { name: 'Games', href: '/games', icon: FiPlay },
-  { name: 'Creators', href: '/creators', icon: FiUsers },
+  { name: 'Upgrade Plan', href: '/pricing', icon: FiStar },
   { name: 'Leaderboard', href: '/leaderboard', icon: FiAward },
   { name: 'About', href: '/about', icon: FiInfo },
 ];
@@ -27,10 +28,15 @@ export function Header() {
             href="/"
             className="flex items-center gap-2.5 text-lg font-bold group"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 via-secondary-500 to-purple-500 shadow-lg shadow-primary-500/25 group-hover:scale-105 transition-transform">
-              <FiZap className="h-5 w-5 text-white" />
+            <div className="relative h-9 w-9 group-hover:scale-105 transition-transform">
+              <Image
+                src="/images/logo.png"
+                alt="GameVibe"
+                fill
+                className="object-contain"
+              />
             </div>
-            <span className="bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
+            <span className="gold-accent font-bold">
               GameVibe
             </span>
           </Link>
@@ -61,13 +67,13 @@ export function Header() {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex md:items-center md:gap-3">
-            {/* Create Game Button */}
+            {/* Sign In Button */}
             <Link
-              href="/create"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-primary-600 to-secondary-600 text-white hover:shadow-lg hover:shadow-primary-500/25 hover:scale-[1.02] transition-all"
+              href="/login"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border-2 border-[#5c4410] text-[#ffd700] hover:bg-[#5c4410]/30 hover:border-[#ffd700] transition-all"
             >
-              <FiZap className="h-4 w-4" />
-              Create Game
+              <FiLogIn className="h-4 w-4" />
+              Sign In
             </Link>
 
             {/* Add to Discord */}
@@ -75,7 +81,7 @@ export function Header() {
               href={`https://discord.com/oauth2/authorize?client_id=${process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || 'YOUR_CLIENT_ID'}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:border-zinc-600 transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-[#ff6b35] to-[#f7c548] text-[#1a1425] hover:shadow-lg hover:shadow-[#ff6b35]/30 hover:scale-[1.02] transition-all"
             >
               <FiGlobe className="h-4 w-4" />
               Add to Discord
@@ -110,14 +116,14 @@ export function Header() {
           >
             <div className="container py-4">
               <div className="flex flex-col gap-2">
-                {/* Create Game - Mobile */}
+                {/* Sign In - Mobile */}
                 <Link
-                  href="/create"
+                  href="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium bg-gradient-to-r from-primary-600 to-secondary-600 text-white"
+                  className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border-2 border-[#5c4410] text-[#ffd700]"
                 >
-                  <FiZap className="h-4 w-4" />
-                  Create Game
+                  <FiLogIn className="h-4 w-4" />
+                  Sign In
                 </Link>
 
                 {navigation.map((item) => {
