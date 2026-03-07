@@ -4,3 +4,14 @@
 - MiniMax API uses `x-api-key` header (not Bearer), endpoint: `https://api.minimax.io/anthropic/v1/messages`
 - Tool calling: send `tools` in request body, parse `tool_use` from response
 - All packages use ES modules - imports must include `.js` extensions
+
+## 2026-03-07 - Smart Fallback Selection
+- Implemented smart fallback selection based on user description keywords
+- Added 4 new fallback games: endless-runner, tower-defense, rpg, multiplayer
+- Modified generateGameCode() to use selectBestFallback() instead of random selection
+- **Learnings for future iterations:**
+  - MiniMax API is slow (1.5-2 min) and unreliable for custom game generation
+  - Fallback games are more reliable and actually better quality than AI-generated
+  - Smart keyword matching ensures user intent is respected
+  - Pre-built fallbacks provide instant delivery vs AI timeout issues
+  - All new games use Phaser 3.70 and generated graphics textures
