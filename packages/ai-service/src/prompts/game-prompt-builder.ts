@@ -1,47 +1,65 @@
 import { GameSpec, GameTemplate } from '@gamevibe/shared';
-import { STANDARDIZED_GAME_TEMPLATE, GAME_TYPE_TEMPLATES, DEFAULT_UI_TEMPLATES } from './templates.js';
+import { STANDARDIZED_GAME_TEMPLATE, GAME_TYPE_TEMPLATES } from './templates.js';
+
+type GameTypeKey = 'platformer' | 'shooter' | 'puzzle';
 
 export class GamePromptBuilder {
   buildGameGenerationPrompt(spec: GameSpec, template: GameTemplate & { assets?: Record<string, string> }): string {
     const gameType = this.normalizeGameType(spec.type);
-    const typeTemplates = GAME_TYPE_TEMPLATES[gameType] || GAME_TYPE_TEMPLATES.platformer;
+    const typeTemplates = GAME_TYPE_TEMPLATES[gameType as GameTypeKey] || GAME_TYPE_TEMPLATES.platformer;
 
-    const templateCode = STANDARDIZED_GAME_TEMPLATE
-      .replace('[GLOBAL_VARIABLES]', typeTemplates.globalVariables)
-      .replace('[STORE_POSITIONS]', typeTemplates.storePositions)
-      .replace('[RESET_OBJECTS]', typeTemplates.resetObjects)
-      .replace('[GAME_OVER_SCREEN]', typeTemplates.gameOverScreen)
-      .replace('[UPDATE_UI]', typeTemplates.updateUI)
-      .replace('[PAUSE_SCREEN]', DEFAULT_UI_TEMPLATES.pauseScreen);
+    const mechanics = spec.coreMechanics?.join(', ') || 'move, jump, collect';
+    const features = spec.features?.join(', ') || 'score, coins, enemies';
+    const isRoguelike = spec.type?.toLowerCase().includes('roguelike') || spec.description?.toLowerCase().includes('roguelike');
+    const isPlatformer = gameType === 'platformer';
 
-    const mechanics = spec.coreMechanics?.join(', ') || 'move, collect';
-    const features = spec.features?.join(', ') || 'score';
+    let gameInstructions = '';
 
-    return `Generate a Phaser.js game: ${spec.name}. ${spec.originalDescription}. Type: ${spec.type}. Mechanics: ${mechanics}. Use arrow keys.
+    if (isRoguelike) {
+      gameInstructions = ` roguelike elements: random level generation, permadeath, increasing difficulty, collect powerups`;
+    }
 
-Code template (fill in sections):
-${templateCode}
+    if (isPlatformer || isRoguelike) {
+      gameInstructions += ` - multiple platform heights - moving platforms - enemies with simple AI (patrol left/right) - jump on enemy heads to kill - different coin types (bronze/silver/gold)`;
+    }
 
-Fill these:
-- WORLD_SETUP: platforms, boundaries
-- GAME_OBJECTS: player, coins, enemies
-- PHYSICS_SETUP: colliders
-- UI_SETUP: score/lives text
-- INPUT_HANDLING: arrow keys
-- GAME_LOGIC: movement, collisions
-- WIN_LOSE_CHECK: lives <= 0 -> gameOver()
-- HELPER_FUNCTIONS: any needed
-- RESTART_UI: hide game over
+    return `Create a complete Phaser.js platformer game: "${spec.name}"
 
-Use globals: player, platforms, coins, enemies, gameState, scoreText, livesText.
-Generate ONLY the complete HTML file.`;
+Description: ${spec.originalDescription}
+Mechanics: ${mechanics}
+Features: ${features}${gameInstructions}
+Difficulty: ${spec.difficulty || 'medium'}
+
+IMPORTANT: Generate a FULL, COMPLETE, PLAYABLE game. Not a skeleton.
+
+Required features:
+1. Player with smooth movement and jumping physics
+2. Multiple platforms at different heights
+3. Collectibles (coins/gems) with score
+4. Enemies that patrol and can be defeated
+5. Game over when falling or hit by enemy
+6. Score display and lives
+7. Restart functionality (press R)
+8. Nice visual effects (particles, tween animations)
+
+Use these graphics (generated in code):
+- Player: green triangle/sprite
+- Platforms: gray rectangles
+- Coins: gold circles
+- Enemies: red shapes
+- Bullets (if shoot): yellow rectangles
+
+Physics: arcade physics with gravity.
+Controls: Arrow keys to move/jump, Space to shoot (if applicable).
+
+Generate complete HTML with Phaser game. Include everything in one file.`;
   }
 
-  private normalizeGameType(type: string): string {
-    const t = type.toLowerCase();
+  private normalizeGameType(type: string | undefined): string {
+    const t = type?.toLowerCase() || '';
     if (t.includes('shoot')) return 'shooter';
     if (t.includes('puzzle')) return 'puzzle';
-    if (t.includes('platform') || t.includes('runner')) return 'platformer';
+    if (t.includes('platform') || t.includes('runner') || t.includes('roguelike')) return 'platformer';
     return 'platformer';
   }
 
@@ -50,11 +68,11 @@ Generate ONLY the complete HTML file.`;
     let type = 'platformer';
     if (d.includes('shoot')) type = 'shooter';
     else if (d.includes('puzzle')) type = 'puzzle';
-    return `{"type":"${type}","name":"Game","description":"${description}","coreMechanics":["move"],"features":["score"],"playerCount":"1","difficulty":"medium"}`;
+    return `{"type":"${type}","name":"Game","description":"${description}","coreMechanics":["move","collect","jump"],"features":["score","enemies"],"playerCount":"1","difficulty":"medium"}`;
   }
 
   buildCodeValidationPrompt(code: string): string {
-    return `Valid Phaser? ${code.slice(0, 100)} Return {"valid": true/false}`;
+    return `Valid Phaser game? Return {"valid": true}`;
   }
 
   buildEnhancementPrompt(code: string, enhancementType: string): string {

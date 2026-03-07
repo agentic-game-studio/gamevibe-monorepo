@@ -1,0 +1,15 @@
+{
+  "name": "@gamevibe/contracts",
+  "version": "0.1.0",
+  "description": "GameVibe Solidity Contracts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test",
+    "deploy": "forge deploy"
+  },
+  "devDependencies": {
+    "forge-std": "^1.1.2"
+  }
+}

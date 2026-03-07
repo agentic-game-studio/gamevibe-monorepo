@@ -1,97 +1,13 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { FiZap, FiArrowLeft } from 'react-icons/fi';
 import Link from 'next/link';
 import { PromptInput } from '@/components/create/prompt-input';
 import { GenerationProgress } from '@/components/create/generation-progress';
 import { GamePreview } from '@/components/create/game-preview';
-import { useGenerationStore } from '@/lib/generation-store';
 
 export default function CreatePage() {
-  const { status, updateStep, setStreamingContent, setComplete } = useGenerationStore();
-  const runningRef = useRef(false);
-
-  // Simulate AI generation process
-  useEffect(() => {
-    if (status !== 'analyzing' || runningRef.current) return;
-    runningRef.current = true;
-
-    // Phase 1: Analyzing (1.5s)
-    setTimeout(() => {
-      updateStep('analyzing', { status: 'complete', progress: 100 });
-
-      // Phase 2: Generating (starts after 500ms)
-      setTimeout(() => {
-        const messages = [
-          'Analyzing game mechanics...',
-          'Creating player controls...',
-          'Designing level structure...',
-          'Adding enemy AI...',
-          'Implementing collision detection...',
-        ];
-        let messageIndex = 0;
-
-        const streamInterval = setInterval(() => {
-          if (messageIndex < messages.length) {
-            setStreamingContent(messages[messageIndex]);
-            messageIndex++;
-          } else {
-            clearInterval(streamInterval);
-            updateStep('generating', { status: 'complete', progress: 100 });
-
-            // Phase 3: Building (starts after 500ms)
-            setTimeout(() => {
-              let progress = 0;
-
-              const progressInterval = setInterval(() => {
-                progress += 20;
-                if (progress >= 100) {
-                  clearInterval(progressInterval);
-                  updateStep('building', { status: 'complete', progress: 100 });
-
-                  setComplete({
-                    id: 'game-' + Date.now(),
-                    title: 'Space Shooter',
-                    description: 'An exciting space shooter with power-ups and boss battles!',
-                    type: 'SHOOTER',
-                    code: `// Generated game code
-class Game {
-  constructor() {
-    this.player = new Player();
-    this.enemies = [];
-    this.powerUps = [];
-    this.score = 0;
-  }
-
-  update() {
-    this.player.update();
-    this.spawnEnemies();
-    this.checkCollisions();
-  }
-
-  draw(ctx) {
-    ctx.clearRect(0, 0, 800, 600);
-    this.player.draw(ctx);
-    this.enemies.forEach(e => e.draw(ctx));
-    this.powerUps.forEach(p => p.draw(ctx));
-  }
-}`,
-                  });
-                  runningRef.current = false;
-                } else {
-                  updateStep('building', { progress });
-                }
-              }, 300);
-            }, 500);
-          }
-        }, 500);
-      }, 500);
-    }, 1500);
-
-  }, [status, updateStep, setStreamingContent, setComplete]);
-
   return (
     <div className="min-h-screen relative">
       {/* Premium Background - Theme */}
