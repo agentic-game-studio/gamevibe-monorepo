@@ -18,7 +18,7 @@ export interface GameGeneratorConfig {
   };
 }
 
-// Hardcoded reliable fallback as last resort
+// Hardcoded reliable fallback
 const RELIABLE_FALLBACK = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Platformer Adventure</title><script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script></head><body>
 <script>
@@ -178,17 +178,9 @@ export class GameGeneratorService {
         generatedCode = fixedCode;
         this.logger.info('Code fixed successfully');
       } else {
-        // Fix didn't work, try AI fallback again
-        this.logger.warn('Could not fix all errors, trying AI fallback', { error: validation.error });
-        const fallbackCode = await this.aiService.generateGameCode(completeSpec, template);
-        const fallbackValidation = await this.engine.validateCode(fallbackCode);
-        if (fallbackValidation.valid) {
-          generatedCode = fallbackCode;
-        } else {
-          // Last resort: use hardcoded reliable fallback
-          this.logger.warn('Using hardcoded reliable fallback');
-          generatedCode = RELIABLE_FALLBACK;
-        }
+        // Use hardcoded reliable fallback immediately (AI fallback takes too long)
+        this.logger.warn('Using hardcoded reliable fallback');
+        generatedCode = RELIABLE_FALLBACK;
       }
     }
 
