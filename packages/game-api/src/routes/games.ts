@@ -49,7 +49,7 @@ router.post('/generate', async (req, res, next) => {
     const genService = await getGeneratorService();
 
     // Set a timeout for game generation
-    const generationTimeout = 110000; // 110 seconds (slightly less than Express timeout)
+    const generationTimeout = 170000; // 110 seconds (slightly less than Express timeout)
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Game generation timed out. Please try a simpler game description.')), generationTimeout);
     });
