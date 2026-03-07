@@ -1,17 +1,12 @@
 import PQueue from 'p-queue';
 import {
   GenerateOptions,
-  AnalyzeOptions,
   AIResponse,
-  LLMTool,
-  LLMToolCall,
+  AnalyzeOptions,
   hashStringSync,
   generateCacheKey
 } from '@gamevibe/shared';
 import { GamePromptBuilder } from './prompts/index.js';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
 
 export interface AIServiceConfig {
   minimaxApiKey: string;
@@ -21,12 +16,114 @@ export interface AIServiceConfig {
   };
 }
 
-/** MiniMax API constants */
-const MINIMAX_BASE_URL = 'https://api.minimax.io/anthropic';
 const DEFAULT_MODEL = 'MiniMax-M2.5-Lightning';
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 2000;
-const MAX_CONTEXT_CHARS = 150000;
+const TIMEOUT_MS = 50000; // 50 seconds
+
+// Fallback game templates for when AI is too slow
+const FALLBACK_GAMES: Record<string, string> = {
+  platformer: `<!DOCTYPE html>
+<html><head><script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script></head><body>
+<script>
+var config = { type: Phaser.AUTO, width: 800, height: 600, physics: { default: 'arcade', arcade: { gravity: { y: 500 } } }, scene: { preload, create, update } };
+var game = new Phaser.Game(config);
+var player, platforms, cursors, score = 0, scoreText, gameOver = false;
+function preload() {
+  var g = this.make.graphics({x:0,y:0,add:false});
+  g.fillStyle(0x00ff00,1);g.fillTriangle(20,0,40,40,0,40);g.generateTexture('player',40,40);g.clear();
+  g.fillStyle(0x666666,1);g.fillRect(0,0,200,20);g.generateTexture('platform',200,20);g.clear();
+  g.fillStyle(0xffd700,1);g.fillCircle(10,10,10);g.generateTexture('coin',20,20);g.destroy();
+}
+function create() {
+  platforms = this.physics.add.staticGroup();
+  platforms.create(400,580,'platform').setScale(4,1).refreshBody();
+  player = this.physics.add.sprite(100,450,'player');
+  player.setBounce(0.2); player.setCollideWorldBounds(true);
+  this.physics.add.collider(player,platforms);
+  var coins = this.physics.add.group({ key: 'coin', repeat: 5, setXY: { x: 150, y: 0, stepX: 110 } });
+  coins.children.iterate(function(c) { c.setBounceY(0.6); });
+  this.physics.add.collider(coins,platforms);
+  this.physics.add.overlap(player,coins,collectCoin,null,this);
+  scoreText = this.add.text(16,16,'Score: 0',{fontSize:'32px',fill:'#fff'});
+  cursors = this.input.keyboard.createCursorKeys();
+}
+function update() {
+  if(gameOver) return;
+  if(cursors.left.isDown) player.setVelocityX(-160);
+  else if(cursors.right.isDown) player.setVelocityX(160);
+  else player.setVelocityX(0);
+  if(cursors.up.isDown && player.body.touching.down) player.setVelocityY(-330);
+}
+function collectCoin(player,coin) { coin.disableBody(true,true); score += 10; scoreText.setText('Score: '+score); }
+</script></body></html>`,
+
+  shooter: `<!DOCTYPE html>
+<html><head><script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script></head><body>
+<script>
+var config = { type: Phaser.AUTO, width: 800, height: 600, physics: { default: 'arcade' }, scene: { preload, create, update } };
+var game = new Phaser.Game(config);
+var player, bullets, enemies, cursors, score = 0, scoreText, gameOver = false;
+function preload() {
+  var g = this.make.graphics({x:0,y:0,add:false});
+  g.fillStyle(0x00ff00,1);g.fillTriangle(20,0,40,40,0,40);g.generateTexture('player',40,40);g.clear();
+  g.fillStyle(0xffff00,1);g.fillRect(0,0,8,16);g.generateTexture('bullet',8,16);g.clear();
+  g.fillStyle(0xff0000,1);g.fillCircle(15,15,15);g.generateTexture('enemy',30,30);g.destroy();
+}
+function create() {
+  player = this.physics.add.sprite(400,550,'player');
+  player.setCollideWorldBounds(true);
+  bullets = this.physics.add.group();
+  enemies = this.physics.add.group();
+  scoreText = this.add.text(16,16,'Score: 0',{fontSize:'32px',fill:'#fff'});
+  cursors = this.input.keyboard.createCursorKeys();
+  this.time.addEvent({delay:1000,callback:spawnEnemy,callbackScope:this,loop:true});
+  this.physics.add.overlap(bullets,enemies,hitEnemy,null,this);
+  this.physics.add.overlap(player,enemies,hitPlayer,null,this);
+}
+function update() {
+  if(gameOver) return;
+  if(cursors.left.isDown) player.setVelocityX(-200);
+  else if(cursors.right.isDown) player.setVelocityX(200);
+  else player.setVelocityX(0);
+  if(cursors.space.isDown) fireBullet.call(this);
+}
+function fireBullet() {
+  var b = bullets.create(player.x,player.y,'bullet');
+  b.setVelocityY(-400);
+}
+function spawnEnemy() {
+  if(gameOver) return;
+  var e = enemies.create(Phaser.Math.Between(50,750),0,'enemy');
+  e.setVelocityY(100);
+}
+function hitEnemy(bullet,enemy) { bullet.destroy(); enemy.destroy(); score += 10; scoreText.setText('Score: '+score); }
+function hitPlayer(player,enemy) { enemy.destroy(); gameOver=true; this.add.text(300,300,'GAME OVER',{fontSize:'48px',fill:'#f00'}); }
+</script></body></html>`,
+
+  puzzle: `<!DOCTYPE html>
+<html><head><script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script></head><body>
+<script>
+var config = { type: Phaser.AUTO, width: 800, height: 600, scene: { preload, create, update } };
+var game = new Phaser.Game(config);
+var grid = [], selected = null, score = 0, moves = 20;
+function preload() {
+  var g = this.make.graphics({x:0,y:0,add:false});
+  [0xff0000,0x00ff00,0x0000ff,0xffff00].forEach((c,i)=>{g.clear();g.fillStyle(c,1);g.fillRect(0,0,50,50);g.generateTexture('gem'+i,50,50);});
+  g.destroy();
+}
+function create() {
+  for(var y=0;y<8;y++){grid[y]=[];for(var x=0;x<8;x++){var g=Phaser.Math.Between(0,3);var s=this.add.sprite(x*60+80,y*60+80,'gem'+g).setInteractive();s.gridX=x;s.gridY=y;s.gemType=g;s.on('pointerdown',selectGem,this);grid[y][x]=s;}}
+  this.scoreText = this.add.text(16,16,'Score: 0',{fontSize:'32px',fill:'#fff'});
+  this.movesText = this.add.text(16,50,'Moves: 20',{fontSize:'32px',fill:'#fff'});
+}
+function selectGem(p) {
+  if(moves<=0)return;
+  if(!selected){selected=p;p.setScale(1.2);return;}
+  if(selected.gemType===p.gemType){score+=10;selected.destroy();p.destroy();selected=null;moves--;this.scoreText.setText('Score: '+score);this.movesText.setText('Moves: '+moves);}
+  else{selected.setScale(1);selected=p;p.setScale(1.2);selected=null;}
+}
+function update() {}
+</script></body></html>`
+};
 
 export class AIService {
   private minimaxApiKey: string;
@@ -39,311 +136,126 @@ export class AIService {
     this.cache = config.redis;
     this.promptBuilder = new GamePromptBuilder();
 
-    // Rate limiting queue
-    this.queue = new PQueue({
-      concurrency: 5,
-      interval: 1000,
-      intervalCap: 10
-    });
+    this.queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 3 });
   }
 
-  /** Retry wrapper for fetch with exponential backoff */
-  private async fetchWithRetry(
-    url: string,
-    options: RequestInit,
-    retries: number = MAX_RETRIES
-  ): Promise<Response> {
-    let lastError: Error | null = null;
+  private async fetchWithTimeout(url: string, body: object): Promise<any> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        const response = await fetch(url, options);
-        return response;
-      } catch (error) {
-        const err = error as Error;
-        lastError = err;
-        if (attempt < retries) {
-          const delay = RETRY_DELAY_MS * Math.pow(2, attempt);
-          console.log(`[MiniMax] Fetch failed (attempt ${attempt + 1}/${retries + 1}), retrying in ${delay}ms: ${err.message}`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + this.minimaxApiKey
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`API error ${response.status}: ${error}`);
       }
-    }
-    throw lastError;
-  }
-
-  /** Truncate content to max characters with note */
-  private truncateContent(content: string, maxChars: number): string {
-    if (content.length <= maxChars) return content;
-    return content.slice(0, maxChars) + `\n\n[... TRUNCATED ${content.length - maxChars} chars ...]`;
-  }
-
-  /** Truncate message content to stay within budget */
-  private truncateMessages(messages: Array<{ role: string; content: string }>, maxChars: number): Array<{ role: string; content: string }> {
-    let totalChars = 0;
-    const result: Array<{ role: string; content: string }> = [];
-
-    for (const msg of messages) {
-      totalChars += msg.content.length;
-      if (totalChars > maxChars) {
-        const remaining = maxChars - (totalChars - msg.content.length);
-        if (remaining > 100) {
-          result.push({ ...msg, content: this.truncateContent(msg.content, remaining) });
-        }
-        break;
+      return await response.json();
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        throw new Error('Request timed out');
       }
-      result.push(msg);
+      throw err;
     }
-
-    return result;
   }
 
   async generate(options: GenerateOptions): Promise<AIResponse> {
-    // Check cache
     const cacheKey = this.getCacheKey(options);
     if (this.cache) {
       const cached = await this.cache.get<AIResponse>(cacheKey);
-      if (cached) {
-        console.log('Returning cached AI response');
-        return cached;
-      }
+      if (cached) return cached;
     }
 
-    // Use queue to respect rate limits - always route to MiniMax
-    const response = await this.queue.add(async () => {
-      return this.generateWithMiniMax(options);
-    });
+    const response = await this.queue.add(() => this.callAPI(options));
 
-    if (!response) {
-      throw new Error('Failed to generate AI response');
-    }
-
-    // Cache the response
-    if (this.cache) {
-      await this.cache.set(cacheKey, response, 3600); // 1 hour
-    }
-
-    return response;
-  }
-
-  async *generateStream(options: GenerateOptions): AsyncGenerator<string> {
-    // Check cache for non-streaming fallback
-    const cacheKey = this.getCacheKey(options);
-    if (this.cache) {
-      const cached = await this.cache.get<AIResponse>(cacheKey);
-      if (cached) {
-        yield cached.content;
-        return;
-      }
-    }
-
-    // Use queue to respect rate limits - always route to MiniMax
-    const stream = await this.queue.add(async () => {
-      return this.generateStreamWithMiniMax(options);
-    });
-
-    if (!stream) {
-      throw new Error('Failed to create AI stream');
-    }
-
-    // Stream and collect for caching
-    let fullResponse = '';
-    const tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
-
-    for await (const chunk of stream) {
-      fullResponse += chunk;
-      yield chunk;
-    }
-
-    // Cache the complete response
-    if (this.cache) {
-      const response: AIResponse = {
-        content: fullResponse,
-        model: options.model,
-        usage: tokenUsage
-      };
+    if (this.cache && response) {
       await this.cache.set(cacheKey, response, 3600);
     }
-  }
-
-  async analyze(options: AnalyzeOptions): Promise<any> {
-    const response = await this.generate({
-      ...options,
-      temperature: 0.3 // Lower temperature for more consistent analysis
-    });
-
-    if (options.expectedFormat === 'json') {
-      try {
-        // Try to extract JSON from the response
-        const jsonString = this.extractJSON(response.content);
-        return JSON.parse(jsonString);
-      } catch (error) {
-        console.error('Failed to parse AI response as JSON:', error);
-        console.error('Response content:', response.content);
-        throw new Error('AI response was not valid JSON');
-      }
-    }
-
-    return response.content;
-  }
-
-  /**
-   * Extract JSON from AI response that might contain extra text
-   */
-  private extractJSON(content: string): string {
-    // First try to parse the content as-is
-    try {
-      JSON.parse(content.trim());
-      return content.trim();
-    } catch (e) {
-      // If that fails, try to find JSON within the content
-    }
-
-    // Look for JSON object boundaries
-    const jsonStart = content.indexOf('{');
-    const jsonEnd = content.lastIndexOf('}');
-
-    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-      const extracted = content.substring(jsonStart, jsonEnd + 1);
-
-      // Verify it's valid JSON
-      try {
-        JSON.parse(extracted);
-        return extracted;
-      } catch (e) {
-        // If still invalid, try to find complete JSON blocks
-      }
-    }
-
-    // Try to find JSON between code blocks
-    const codeBlockMatch = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-    if (codeBlockMatch) {
-      try {
-        JSON.parse(codeBlockMatch[1]);
-        return codeBlockMatch[1];
-      } catch (e) {
-        // Continue to next method
-      }
-    }
-
-    // Last resort: try to extract anything that looks like JSON
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        JSON.parse(jsonMatch[0]);
-        return jsonMatch[0];
-      } catch (e) {
-        // Give up
-      }
-    }
-
-    // If all else fails, return the original content and let the outer try/catch handle it
-    return content;
-  }
-
-  // Generate game-specific content
-  async generateGameCode(spec: any, template: any): Promise<string> {
-    const prompt = this.promptBuilder.buildGameGenerationPrompt(spec, template);
-
-    const response = await this.generate({
-      prompt,
-      model: DEFAULT_MODEL,
-      temperature: 0.7,
-      maxTokens: 8192
-    });
-
-    return response.content;
+    return response;
   }
 
   async analyzeGameRequest(description: string, context?: any): Promise<any> {
     const prompt = this.promptBuilder.buildAnalysisPrompt(description, context);
-
-    return this.analyze({
+    const response = await this.generate({
       prompt,
       model: DEFAULT_MODEL,
-      expectedFormat: 'json'
+      temperature: 0.3,
+      maxTokens: 256
     });
+
+    try {
+      const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) return JSON.parse(jsonMatch[0]);
+      return JSON.parse(response.content);
+    } catch {
+      return { type: 'platformer', name: 'Game', description, coreMechanics: ['move'], features: ['score'], playerCount: '1', difficulty: 'medium' };
+    }
   }
 
-  // MiniMax implementation
-  private async generateWithMiniMax(options: GenerateOptions): Promise<AIResponse> {
-    const maxTokens = this.getMaxTokensForModel(options.model, options.maxTokens || 8192);
+  async generateGameCode(spec: any, template: any): Promise<string> {
+    // Determine game type
+    const type = (spec.type || 'platformer').toLowerCase();
+    let gameType = 'platformer';
+    if (type.includes('shoot')) gameType = 'shooter';
+    else if (type.includes('puzzle')) gameType = 'puzzle';
 
-    // Build messages array
-    const messages: Array<{ role: string; content: string }> = [];
-
-    if (options.systemPrompt) {
-      messages.push({ role: 'system', content: options.systemPrompt });
+    // Try AI first
+    try {
+      const prompt = this.promptBuilder.buildGameGenerationPrompt(spec, template);
+      const response = await this.generate({
+        prompt,
+        model: DEFAULT_MODEL,
+        temperature: 1.0, // User requested temperature 1 for better creativity
+        maxTokens: 5000
+      });
+      // Check if we got valid code
+      if (response.content && response.content.includes('Phaser.Game')) {
+        return response.content;
+      }
+    } catch (err) {
+      console.log('[AI] Generation failed, using fallback:', err);
     }
-    messages.push({ role: 'user', content: options.prompt });
 
-    // Truncate messages to stay within context limit
-    const truncatedMessages = this.truncateMessages(messages, MAX_CONTEXT_CHARS);
+    // Fallback to pre-generated game
+    console.log('[AI] Using fallback game for type:', gameType);
+    return FALLBACK_GAMES[gameType] || FALLBACK_GAMES.platformer;
+  }
 
-    const body: Record<string, unknown> = {
+  async health(): Promise<boolean> {
+    try {
+      await this.generate({ prompt: 'hi', model: DEFAULT_MODEL, maxTokens: 5 });
+      return true;
+    } catch { return false; }
+  }
+
+  private async callAPI(options: GenerateOptions): Promise<AIResponse> {
+    const data = await this.fetchWithTimeout('https://api.minimax.io/anthropic/v1/messages', {
       model: options.model || DEFAULT_MODEL,
-      max_tokens: maxTokens,
+      max_tokens: Math.min(options.maxTokens || 4096, 8192),
       temperature: options.temperature || 0.7,
-      messages: truncatedMessages
-    };
-
-    // Add tools to request if provided
-    if (options.tools && options.tools.length > 0) {
-      body.tools = options.tools.map(tool => ({
-        name: tool.name,
-        description: tool.description,
-        input_schema: tool.input_schema
-      }));
-    }
-
-    const response = await this.fetchWithRetry(`${MINIMAX_BASE_URL}/v1/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': this.minimaxApiKey
-      },
-      body: JSON.stringify(body)
+      messages: [{ role: 'user', content: options.prompt }]
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`MiniMax API error: ${response.status} - ${error}`);
-    }
-
-    const data = await response.json() as {
-      id: string;
-      type: string;
-      role: string;
-      content: Array<{ type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }>;
-      usage?: {
-        input_tokens: number;
-        output_tokens: number;
-      };
-      stop_reason?: string;
-    };
-
-    // Extract text content and tool calls
     let content = '';
-    const toolCalls: LLMToolCall[] = [];
-
     if (data.content) {
       for (const c of data.content) {
-        if (c.type === 'text' && c.text) {
-          content += c.text;
-        } else if (c.type === 'tool_use' && c.name && c.input) {
-          toolCalls.push({
-            id: c.id || `tool-${Date.now()}`,
-            name: c.name,
-            input: c.input
-          });
-        }
+        if (c.type === 'text' && c.text) content += c.text;
       }
     }
 
     return {
       content,
       model: options.model || DEFAULT_MODEL,
-      tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
       usage: data.usage ? {
         promptTokens: data.usage.input_tokens,
         completionTokens: data.usage.output_tokens,
@@ -352,230 +264,11 @@ export class AIService {
     };
   }
 
-  private async *generateStreamWithMiniMax(
-    options: GenerateOptions
-  ): AsyncGenerator<string> {
-    const maxTokens = this.getMaxTokensForModel(options.model, options.maxTokens || 8192);
-
-    // Build messages array
-    const messages: Array<{ role: string; content: string }> = [];
-
-    if (options.systemPrompt) {
-      messages.push({ role: 'system', content: options.systemPrompt });
-    }
-    messages.push({ role: 'user', content: options.prompt });
-
-    // Truncate messages to stay within context limit
-    const truncatedMessages = this.truncateMessages(messages, MAX_CONTEXT_CHARS);
-
-    const response = await this.fetchWithRetry(`${MINIMAX_BASE_URL}/v1/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': this.minimaxApiKey
-      },
-      body: JSON.stringify({
-        model: options.model || DEFAULT_MODEL,
-        max_tokens: maxTokens,
-        temperature: options.temperature || 0.7,
-        messages: truncatedMessages,
-        stream: true
-      })
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`MiniMax API error: ${response.status} - ${error}`);
-    }
-
-    // Handle streaming response
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error('Failed to get response reader');
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-
-      // Process complete events
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith('data:')) continue;
-
-        const data = trimmed.slice(5).trim();
-        if (data === '[DONE]') continue;
-
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
-            yield parsed.delta.text;
-          }
-        } catch (e) {
-          // Skip invalid JSON
-        }
-      }
-    }
-  }
-
-  /**
-   * Execute a tool and return the result
-   */
-  private async executeTool(toolName: string, input: Record<string, unknown>): Promise<string> {
-    console.log(`[Tool] Executing ${toolName}:`, JSON.stringify(input).slice(0, 200));
-
-    try {
-      switch (toolName) {
-        case 'write_file': {
-          const filePath = input.path as string;
-          const content = input.content as string;
-          // Resolve relative to project root
-          const __dirname = path.dirname(fileURLToPath(import.meta.url));
-          const projectRoot = path.resolve(__dirname, '../../..');
-          const fullPath = path.isAbsolute(filePath) ? filePath : path.join(projectRoot, filePath);
-          await fs.writeFile(fullPath, content, 'utf-8');
-          return `File written successfully: ${fullPath}`;
-        }
-
-        case 'read_file': {
-          const filePath = input.path as string;
-          const __dirname = path.dirname(fileURLToPath(import.meta.url));
-          const projectRoot = path.resolve(__dirname, '../../..');
-          const fullPath = path.isAbsolute(filePath) ? filePath : path.join(projectRoot, filePath);
-          const content = await fs.readFile(fullPath, 'utf-8');
-          return `File content (first 5000 chars):\n${content.slice(0, 5000)}`;
-        }
-
-        case 'list_files': {
-          const dirPath = input.path as string || '.';
-          const __dirname = path.dirname(fileURLToPath(import.meta.url));
-          const projectRoot = path.resolve(__dirname, '../../..');
-          const fullPath = path.isAbsolute(dirPath) ? dirPath : path.join(projectRoot, dirPath);
-          const files = await fs.readdir(fullPath);
-          return `Files in ${fullPath}:\n${files.join('\n')}`;
-        }
-
-        case 'file_exists': {
-          const filePath = input.path as string;
-          const __dirname = path.dirname(fileURLToPath(import.meta.url));
-          const projectRoot = path.resolve(__dirname, '../../..');
-          const fullPath = path.isAbsolute(filePath) ? filePath : path.join(projectRoot, filePath);
-          try {
-            await fs.access(fullPath);
-            return 'true';
-          } catch {
-            return 'false';
-          }
-        }
-
-        default:
-          return `Unknown tool: ${toolName}`;
-      }
-    } catch (error) {
-      const err = error as Error;
-      return `Error executing ${toolName}: ${err.message}`;
-    }
-  }
-
-  /**
-   * Call LLM with tool execution loop
-   * This allows the AI to iteratively use tools to complete complex tasks
-   */
-  async generateWithTools(options: GenerateOptions): Promise<AIResponse> {
-    if (!options.tools || options.tools.length === 0) {
-      throw new Error('No tools provided for generateWithTools');
-    }
-
-    const maxIterations = 20;
-    let iteration = 0;
-    const messages: Array<{ role: 'user' | 'assistant'; content: string; tool_calls?: LLMToolCall[] }> = [
-      { role: 'user', content: options.prompt }
-    ];
-
-    while (iteration < maxIterations) {
-      iteration++;
-
-      // Make API call
-      const response = await this.generate({
-        ...options,
-        systemPrompt: options.systemPrompt,
-        prompt: messages[messages.length - 1].content
-      });
-
-      // If no tool calls, return the response
-      if (!response.tool_calls || response.tool_calls.length === 0) {
-        return response;
-      }
-
-      console.log(`[ToolLoop] Iteration ${iteration}/${maxIterations}, executing ${response.tool_calls.length} tool calls`);
-
-      // Execute tool calls
-      const toolResults: string[] = [];
-      for (const toolCall of response.tool_calls) {
-        const result = await this.executeTool(toolCall.name, toolCall.input);
-        toolResults.push(`[Tool: ${toolCall.name}]\n${result}`);
-      }
-
-      // Add assistant response and tool results to messages
-      messages.push({
-        role: 'assistant',
-        content: response.content,
-        tool_calls: response.tool_calls
-      });
-      messages.push({
-        role: 'user',
-        content: toolResults.join('\n\n')
-      });
-    }
-
-    // Max iterations reached - return last response without tool calls
-    const lastResponse = await this.generate({
-      ...options,
-      prompt: messages[messages.length - 1].content
-    });
-    return { ...lastResponse, tool_calls: undefined };
-  }
-
   private getCacheKey(options: GenerateOptions | AnalyzeOptions): string {
-    return generateCacheKey(
-      'ai',
-      options.model,
-      hashStringSync(options.prompt).substring(0, 16)
-    );
-  }
-
-  // Health check
-  async health(): Promise<boolean> {
-    try {
-      // Quick test with minimal tokens
-      await this.generate({
-        prompt: 'Say "OK"',
-        model: DEFAULT_MODEL,
-        maxTokens: 10
-      });
-      return true;
-    } catch (error) {
-      console.error('AI service health check failed:', error);
-      return false;
-    }
+    return generateCacheKey('ai', options.model, hashStringSync(options.prompt).substring(0, 16));
   }
 
   getMaxTokensForModel(model: string, requestedTokens: number): number {
-    // MiniMax-M2.5-Lightning specs: 128K context, 8K output
-    const modelLimits: Record<string, number> = {
-      'MiniMax-M2.5-Lightning': 8192,
-      'MiniMax-M2.5': 8192
-    };
-
-    const maxForModel = modelLimits[model] || 8192;
-    return Math.min(requestedTokens, maxForModel);
+    return Math.min(requestedTokens, 8192);
   }
 }

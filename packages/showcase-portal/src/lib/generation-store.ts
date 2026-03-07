@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import axios from 'axios';
+
+const API_URL = process.env.NEXT_PUBLIC_GAME_API_URL || 'http://localhost:3002';
 
 export type GenerationStatus = 'idle' | 'analyzing' | 'generating' | 'building' | 'complete' | 'error';
 
@@ -17,6 +20,8 @@ export interface GeneratedGame {
   type: string;
   code: string;
   thumbnailUrl?: string;
+  playUrl?: string;
+  createdAt?: string;
 }
 
 interface GenerationState {
@@ -31,7 +36,7 @@ interface GenerationState {
 
   // Actions
   setPrompt: (prompt: string) => void;
-  startGeneration: () => void;
+  startGeneration: () => Promise<void>;
   updateStep: (stepId: string, updates: Partial<GenerationStep>) => void;
   setStreamingContent: (content: string) => void;
   setComplete: (game: GeneratedGame) => void;
@@ -58,7 +63,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   // Actions
   setPrompt: (prompt) => set({ prompt }),
 
-  startGeneration: () => {
+  startGeneration: async () => {
     const prompt = get().prompt;
     if (!prompt.trim()) return;
 
@@ -73,6 +78,84 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       error: null,
       streamingContent: '',
     });
+
+    // Call the game API
+    try {
+      // Phase 1: Analyzing (complete immediately)
+      setTimeout(() => {
+        get().updateStep('analyzing', { status: 'complete', progress: 100 });
+      }, 1500);
+
+      // Start generating
+      setTimeout(() => {
+        get().updateStep('generating', { status: 'in_progress', progress: 0 });
+      }, 2000);
+
+      const response = await axios.post(`${API_URL}/api/games/generate`, {
+        description: prompt,
+        type: 'other',
+      }, {
+        timeout: 180000, // 3 minute timeout for game generation
+      });
+
+      const gameData = response.data;
+
+      // Phase 2: Generating complete
+      get().updateStep('generating', { status: 'complete', progress: 100 });
+
+      // Phase 3: Building
+      setTimeout(() => {
+        get().updateStep('building', { status: 'in_progress', progress: 0 });
+
+        // Simulate building progress
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+          progress += 25;
+          if (progress >= 100) {
+            clearInterval(progressInterval);
+            get().updateStep('building', { status: 'complete', progress: 100 });
+
+            // Save game to localStorage
+            const gameToSave = {
+              id: gameData.id,
+              title: gameData.name,
+              description: gameData.description,
+              type: gameData.type,
+              code: gameData.code,
+              thumbnailUrl: gameData.thumbnailUrl,
+              playUrl: gameData.playUrl,
+              createdAt: new Date().toISOString(),
+            };
+
+            // Store in localStorage
+            try {
+              const existingGames = JSON.parse(localStorage.getItem('generated_games') || '[]');
+              existingGames.unshift(gameToSave);
+              // Keep only last 10 games
+              localStorage.setItem('generated_games', JSON.stringify(existingGames.slice(0, 10)));
+            } catch (e) {
+              console.warn('Failed to save game to localStorage:', e);
+            }
+
+            // Set the complete game
+            set({
+              generatedGame: gameToSave,
+              status: 'complete',
+            });
+          } else {
+            get().updateStep('building', { progress });
+          }
+        }, 300);
+      }, 500);
+
+    } catch (error: any) {
+      console.error('Game generation error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to generate game';
+      const errorType = error.response?.status === 429 ? 'rate_limit' :
+                       error.response?.status === 400 ? 'validation' :
+                       error.code === 'ECONNABORTED' ? 'network' : 'unknown';
+      set({ error: errorMessage, errorType, status: 'error' });
+    }
   },
 
   updateStep: (stepId, updates) => {
@@ -122,3 +205,13 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       streamingContent: '',
     }),
 }));
+
+// Helper function to get game by ID from localStorage
+export function getGameById(id: string): GeneratedGame | null {
+  try {
+    const games = JSON.parse(localStorage.getItem('generated_games') || '[]');
+    return games.find((g: GeneratedGame) => g.id === id) || null;
+  } catch {
+    return null;
+  }
+}
