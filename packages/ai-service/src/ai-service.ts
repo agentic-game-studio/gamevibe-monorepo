@@ -19,6 +19,34 @@ export interface AIServiceConfig {
 const DEFAULT_MODEL = 'MiniMax-M2.5-Lightning';
 const TIMEOUT_MS = 120000; // 2 minute timeout for complex game generation
 
+// Smart fallback selection based on user description
+function selectBestFallback(description: string): string {
+  const desc = description.toLowerCase();
+
+  // Map keywords to game types
+  if (desc.includes('run') || desc.includes('runner') || desc.includes('endless') || desc.includes('dash')) {
+    return getRandomFallback('endless-runner');
+  }
+  if (desc.includes('tower') || desc.includes('defense') || desc.includes('defend')) {
+    return getRandomFallback('tower-defense');
+  }
+  if (desc.includes('rpg') || desc.includes('adventure') || desc.includes('explore') || desc.includes('dungeon') || desc.includes('roguelike')) {
+    return getRandomFallback('rpg');
+  }
+  if (desc.includes('shoot') || desc.includes('space') || desc.includes('invader') || desc.includes('galaga')) {
+    return getRandomFallback('shooter');
+  }
+  if (desc.includes('puzzle') || desc.includes('match') || desc.includes('gem') || desc.includes('candy') || desc.includes('color')) {
+    return getRandomFallback('puzzle');
+  }
+  if (desc.includes('multiplayer') || desc.includes('multi-player') || desc.includes('versus') || desc.includes('battle') || desc.includes('2 player') || desc.includes('2p')) {
+    return getRandomFallback('multiplayer');
+  }
+
+  // Default to platformer
+  return getRandomFallback('platformer');
+}
+
 // Multiple complex fallback games for variety
 const FALLBACK_GAMES: Record<string, string[]> = {
   platformer: [
@@ -758,6 +786,200 @@ function gameOver() {
 
 function update() {}
 </script></body></html>`
+  ],
+
+  'endless-runner': [
+    // Endless Runner with obstacles and power-ups
+    `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Endless Runner</title><script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script></head><body>
+<script>
+var config = { type: Phaser.AUTO, width: 800, height: 600, physics: { default: 'arcade', arcade: { gravity: { y: 1200 }, debug: false } }, scene: { preload, create, update } };
+var game = new Phaser.Game(config);
+var player, ground, obstacles, coins, powerups, cursors, scoreText, distanceText, gameState = { score: 0, distance: 0, isGameOver: false, speed: 350, hasDoubleJump: false, hasShield: false };
+var canDoubleJump = false;
+
+function preload() {
+  var g = this.make.graphics({x:0,y:0,add:false});
+  g.fillStyle(0x00ff88,1); g.fillTriangle(20,0,40,40,0,40); g.generateTexture('player',40,40); g.clear();
+  g.fillStyle(0x2d5a27,1); g.fillRect(0,0,800,40); g.generateTexture('ground',800,40); g.clear();
+  g.fillStyle(0xff4444,1); g.fillRect(0,0,30,50); g.generateTexture('spike',30,50); g.clear();
+  g.fillStyle(0xff8800,1); g.fillRect(0,0,25,45); g.generateTexture('cactus',25,45); g.clear();
+  g.fillStyle(0x444444,1); g.fillRect(0,0,20,60); g.generateTexture('barrier',20,60); g.clear();
+  g.fillStyle(0xffd700,1); g.fillCircle(10,10,10); g.generateTexture('coin',20,20); g.clear();
+  g.fillStyle(0x00ffff,1); g.fillCircle(12,12,12); g.generateTexture('powerJump',24,24); g.clear();
+  g.fillStyle(0xff00ff,1); g.fillCircle(12,12,12); g.generateTexture('powerShield',24,24); g.destroy();
+}
+
+function create() {
+  ground = this.physics.add.staticGroup();
+  ground.create(400,580,'ground').setScale(2,1).refreshBody();
+  player = this.physics.add.sprite(100,500,'player');
+  player.setBounce(0.1); player.setCollideWorldBounds(true);
+  obstacles = this.physics.add.group();
+  coins = this.physics.add.group();
+  powerups = this.physics.add.group();
+  this.physics.add.collider(player,ground);
+  this.physics.add.collider(obstacles,ground);
+  this.physics.add.collider(coins,ground);
+  this.physics.add.collider(powerups,ground);
+  this.physics.add.overlap(player,obstacles,hitObstacle,null,this);
+  this.physics.add.overlap(player,coins,collectCoin,null,this);
+  this.physics.add.overlap(player,powerups,collectPowerup,null,this);
+  scoreText = this.add.text(16,16,'Score: 0',{fontSize:'28px',fill:'#fff',stroke:'#000',strokeThickness:3});
+  distanceText = this.add.text(780,16,'Distance: 0m',{fontSize:'22px',fill:'#0ff'}).setOrigin(1,0);
+  this.add.text(400,30,'ARROWS: move/jump | R: restart',{fontSize:'14px',fill:'#888'}).setOrigin(0.5);
+  cursors = this.input.keyboard.createCursorKeys();
+  this.input.keyboard.on('keydown-R',()=>this.scene.restart());
+  this.time.addEvent({delay:1500,callback:spawnObstacle,callbackScope:this,loop:true});
+  this.time.addEvent({delay:2000,callback:spawnCoin,callbackScope:this,loop:true});
+  this.time.addEvent({delay:8000,callback:spawnPowerup,callbackScope:this,loop:true});
+}
+
+function spawnObstacle() {
+  if(gameState.isGameOver) return;
+  var types = ['spike','cactus','barrier'];
+  var type = types[Phaser.Math.Between(0,types.length-1)];
+  obstacles.create(850,type==='barrier'?540:555,type).setVelocityX(-gameState.speed-gameState.distance/50);
+}
+
+function spawnCoin() {
+  if(gameState.isGameOver) return;
+  coins.create(850,Phaser.Math.Between(450,520),'coin').setVelocityX(-gameState.speed-gameState.distance/50);
+}
+
+function spawnPowerup() {
+  if(gameState.isGameOver) return;
+  powerups.create(850,Phaser.Math.Between(400,500),Math.random()>0.5?'powerJump':'powerShield').setVelocityX(-gameState.speed-gameState.distance/50);
+}
+
+function collectCoin(player,coin) { coin.disableBody(true,true); gameState.score+=10; scoreText.setText('Score: '+gameState.score); this.tweens.add({targets:player,scaleX:1.2,scaleY:0.8,duration:50,yoyo:true}); }
+function collectPowerup(player,powerup) { powerup.disableBody(true,true); if(powerup.texture.key==='powerJump')gameState.hasDoubleJump=true; else if(powerup.texture.key==='powerShield')gameState.hasShield=true; this.cameras.main.flash(150,0,255,255); }
+function hitObstacle(player,obstacle) { if(gameState.hasShield){gameState.hasShield=false;obstacle.disableBody(true,true);this.cameras.main.shake(100,0.01);return;} gameOver.call(this);}
+function gameOver(){gameState.isGameOver=true;var c=this.add.container(400,300);c.add(this.add.rectangle(0,0,800,600,0,0.9));c.add(this.add.text(0,-60,'GAME OVER',{fontSize:'72px',fill:'#ff0000',stroke:'#fff',strokeThickness:6}).setOrigin(0.5));c.add(this.add.text(0,10,'Score: '+gameState.score,{fontSize:'36px',fill:'#fff'}).setOrigin(0.5));c.add(this.add.text(0,60,'Distance: '+Math.floor(gameState.distance)+'m',{fontSize:'28px',fill:'#0ff'}).setOrigin(0.5));var btn=this.add.rectangle(0,140,180,55,0x00ff00).setInteractive({useHandCursor:true});c.add(this.add.text(0,140,'PLAY AGAIN',{fontSize:'24px',fill:'#000'}).setOrigin(0.5));btn.on('pointerdown',()=>this.scene.restart());}
+function update() {
+  if(gameState.isGameOver) return;
+  gameState.distance+=gameState.speed/3600;distanceText.setText('Distance: '+Math.floor(gameState.distance)+'m');
+  gameState.speed=350+gameState.distance/20;
+  if(cursors.left.isDown)player.setVelocityX(-200);else if(cursors.right.isDown)player.setVelocityX(200);else player.setVelocityX(0);
+  if(cursors.up.isDown&&player.body.touching.down){player.setVelocityY(-500);canDoubleJump=true;}else if(cursors.up.isDown&&canDoubleJump&&gameState.hasDoubleJump){player.setVelocityY(-450);canDoubleJump=false;}
+  obstacles.children.each(o=>{if(o.x<-50)o.destroy();});coins.children.each(c=>{if(c.x<-50)c.destroy();});powerups.children.each(p=>{if(p.x<-50)p.destroy();});
+  if(player.y>650)gameOver.call(this);
+}
+</script></body></html>`
+  ],
+
+  'tower-defense': [
+    // Tower Defense with multiple tower types
+    `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Tower Defense</title><script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script></head><body>
+<script>
+var config={type:Phaser.AUTO,width:800,height:600,physics:{default:'arcade',debug:false},scene:{preload,create,update}};
+var game=new Phaser.Game(config);
+var towers,enemies,bullets,selectedTower,moneyText,livesText,waveText,gameState={money:150,lives:20,wave:1,isGameOver:false};
+var towerTypes=[{name:'Archer',cost:50,range:150,damage:10,color:0x44ff44,reload:500},{name:'Cannon',cost:100,range:120,damage:30,color:0xff4444,reload:1000},{name:'Ice',cost:75,range:100,damage:5,color:0x44ffff,reload:300,slow:true}];
+var path=[[0,300],[100,300],[200,200],[300,200],[400,150],[500,150],[600,200],[700,200],[700,400],[600,400],[500,500],[400,500],[300,450],[200,450],[100,350],[100,300]];
+
+function preload(){var g=this.make.graphics({x:0,y:0,add:false});g.fillStyle(0x44ff44,1);g.fillRect(0,0,30,30);g.generateTexture('towerArcher',30,30);g.clear();g.fillStyle(0xff4444,1);g.fillRect(0,0,35,35);g.generateTexture('towerCannon',35,35);g.clear();g.fillStyle(0x44ffff,1);g.fillRect(0,0,28,28);g.generateTexture('towerIce',28,28);g.clear();g.fillStyle(0x8b4513,1);g.fillRect(0,0,25,25);g.generateTexture('enemy',25,25);g.clear();g.fillStyle(0xff0000,1);g.fillCircle(8,8,8);g.generateTexture('bullet',16,16);g.destroy();}
+
+function create(){
+  towers=this.physics.add.group();enemies=this.physics.add.group();bullets=this.physics.add.group();
+  for(var i=0;i<path.length-1;i++){var g=this.add.graphics();g.lineStyle(40,0x3d2817,1);g.lineBetween(path[i][0],path[i][1],path[i+1][0],path[i+1][1]);}
+  var btnY=550;towerTypes.forEach((t,i)=>{var btn=this.add.rectangle(150+i*200,btnY,80,40,t.color).setInteractive({useHandCursor:true});this.add.text(150+i*200,btnY,t.name+' $'+t.cost,{fontSize:'14px',fill:'#000',fontWeight:'bold'}).setOrigin(0.5);btn.on('pointerdown',()=>selectedTower=t);});
+  moneyText=this.add.text(16,16,'$150',{fontSize:'28px',fill:'#ffd700',stroke:'#000',strokeThickness:3});livesText=this.add.text(16,50,'❤❤❤❤❤❤❤❤❤❤❤❤❤❤❤❤❤❤',{fontSize:'18px'});waveText=this.add.text(780,16,'Wave: 1',{fontSize:'24px',fill:'#0ff'}).setOrigin(1,0);this.add.text(400,30,'Click tower type, then click map to place',{fontSize:'14px',fill:'#888'}).setOrigin(0.5);
+  this.input.on('pointerdown',(p)=>{if(selectedTower&&gameState.money>=selectedTower.cost&&p.y<500){placeTower.call(this,p.x,p.y);}});
+  this.time.addEvent({delay:3000,callback:spawnWave,callbackScope:this,loop:true});
+}
+
+function placeTower(x,y){var type='tower'+selectedTower.name;var tower=towers.create(x,y,type);tower.setData('type',selectedTower);tower.setData('lastFire',0);gameState.money-=selectedTower.cost;moneyText.setText('$'+gameState.money);}
+function spawnWave(){if(gameState.isGameOver)return;var numEnemies=5+gameState.wave*2;for(var i=0;i<numEnemies;i++){this.time.delayedCall(i*500,()=>{if(gameState.isGameOver)return;var e=enemies.create(path[0][0],path[0][1],'enemy');e.setData('pathIndex',0);e.setData('hp',20+gameState.wave*10);e.setData('speed',60+gameState.wave*5);});}}
+function update(){
+  if(gameState.isGameOver)return;
+  enemies.children.each(e=>{if(!e.active)return;var idx=e.getData('pathIndex');if(idx<path.length-1){var target=path[idx+1];var dx=target[0]-e.x;var dy=target[1]-e.y;var dist=Math.sqrt(dx*dx+dy*dy);if(dist<10){e.setData('pathIndex',idx+1);}else{var speed=e.getData('speed');e.setVelocityX(dx/dist*speed);e.setVelocityY(dy/dist*speed);}}else{e.destroy();gameState.lives--;updateLivesText.call(this);if(gameState.lives<=0)gameOver.call(this);}});
+  var now=this.time.now;towers.children.each(t=>{var type=t.getData('type');if(now-t.getData('lastFire')>type.reload){var target=null;var minDist=type.range;enemies.children.each(e=>{if(!e.active)return;var dist=Phaser.Math.Distance.Between(t.x,t.y,e.x,e.y);if(dist<minDist){minDist=dist;target=e;}});if(target){t.setData('lastFire',now);var b=bullets.create(t.x,t.y,'bullet');b.setData('damage',type.damage);b.setData('slow',type.slow||false);this.physics.moveToObject(b,target,400);}}});
+  bullets.children.each(b=>{if(!b.active)return;if(b.x<0||b.x>800||b.y<0||b.y>600){b.destroy();return;}enemies.children.each(e=>{if(!e.active)return;if(Phaser.Math.Distance.Between(b.x,b.y,e.x,e.y)<20){b.destroy();var hp=e.getData('hp')-b.getData('damage');e.setData('hp',hp);if(b.getData('slow'))e.setAlpha(0.5);this.time.delayedCall(1000,()=>e.setAlpha(1));if(hp<=0){e.destroy();gameState.money+=10+gameState.wave;moneyText.setText('$'+gameState.money);}}});});
+}
+function updateLivesText(){var hearts='';for(var i=0;i<Math.min(gameState.lives,20);i++)hearts+='❤';livesText.setText(hearts);}
+function gameOver(){gameState.isGameOver=true;var c=this.add.container(400,300);c.add(this.add.rectangle(0,0,800,600,0,0.9));c.add(this.add.text(0,-40,'GAME OVER',{fontSize:'64px',fill:'#ff0000',stroke:'#fff',strokeThickness:5}).setOrigin(0.5));c.add(this.add.text(0,30,'Wave: '+gameState.wave,{fontSize:'32px',fill:'#0ff'}).setOrigin(0.5));var btn=this.add.rectangle(0,120,150,50,0x00ff00).setInteractive({useHandCursor:true});c.add(this.add.text(0,120,'PLAY',{fontSize:'24px',fill:'#000'}).setOrigin(0.5));btn.on('pointerdown',()=>this.scene.restart());}
+</script></body></html>`
+  ],
+
+  rpg: [
+    // Top-Down RPG Adventure
+    `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Dungeon Explorer RPG</title><script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script></head><body>
+<script>
+var config={type:Phaser.AUTO,width:800,height:600,physics:{default:'arcade',arcade:{debug:false}},scene:{preload,create,update}};
+var game=new Phaser.Game(config);
+var player,walls,enemies,items,cursors,attackKey,scoreText,healthText,levelText,gameState={hp:100,maxHp:100,xp:0,level:1,gold:0,attack:10,isGameOver:false,attacking:false};
+var keys={red:false,blue:false,green:false};
+
+function preload(){var g=this.make.graphics({x:0,y:0,add:false});g.fillStyle(0x4488ff,1);g.fillRect(0,0,28,28);g.generateTexture('player',28,28);g.clear();g.fillStyle(0x555555,1);g.fillRect(0,0,40,40);g.generateTexture('wall',40,40);g.clear();g.fillStyle(0xff4444,1);g.fillCircle(12,12,12);g.generateTexture('enemy',24,24);g.clear();g.fillStyle(0xffd700,1);g.fillCircle(8,8,8);g.generateTexture('gold',16,16);g.clear();g.fillStyle(0xff0000,1);g.fillRect(6,0,12,20);g.generateTexture('potion',16,20);g.clear();g.fillStyle(0x00ff00,1);g.fillRect(0,0,20,20);g.generateTexture('keyRed',20,20);g.clear();g.fillStyle(0x0000ff,1);g.fillRect(0,0,20,20);g.generateTexture('keyBlue',20,20);g.destroy();}
+
+function create(){
+  walls=this.physics.add.staticGroup();generateDungeon.call(this);
+  player=this.physics.add.sprite(80,80,'player');player.setCollideWorldBounds(true);
+  enemies=this.physics.add.group();items=this.physics.add.group();
+  spawnEnemies.call(this);spawnItems.call(this);
+  this.physics.add.collider(player,walls);this.physics.add.collider(enemies,walls);this.physics.add.overlap(player,enemies,attackEnemy,null,this);this.physics.add.overlap(player,items,collectItem,null,this);
+  scoreText=this.add.text(16,16,'Gold: 0',{fontSize:'24px',fill:'#ffd700',stroke:'#000',strokeThickness:2});healthText=this.add.text(16,45,'HP: 100/100',{fontSize:'20px',fill:'#ff4444'});levelText=this.add.text(780,16,'Level: 1 XP: 0',{fontSize:'18px',fill:'#0ff'}).setOrigin(1,0);this.add.text(400,30,'ARROWS: move | SPACE: attack',{fontSize:'14px',fill:'#888'}).setOrigin(0.5);
+  cursors=this.input.keyboard.createCursorKeys();attackKey=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+}
+
+function generateDungeon(){walls.clear(true,true);for(var x=0;x<800;x+=40){walls.create(x,0,'wall');walls.create(x,560,'wall');}for(var y=0;y<600;y+=40){walls.create(0,y,'wall');walls.create(760,y,'wall');}for(var i=0;i<30;i++){var x=Phaser.Math.Between(2,17)*40;var y=Phaser.Math.Between(2,13)*40;if(x>60&&x<700&&y>60&&y<500)walls.create(x,y,'wall');}}
+function spawnEnemies(){enemies.clear(true,true);var count=3+gameState.level*2;for(var i=0;i<count;i++){var x=Phaser.Math.Between(200,700);var y=Phaser.Math.Between(100,500);if(Phaser.Math.Distance.Between(x,y,player.x,player.y)>100){var e=enemies.create(x,y,'enemy');e.setData('hp',20+gameState.level*10);e.setData('xp',10+gameState.level*5);e.setVelocityX(Phaser.Math.Between(-50,50));}}}
+function spawnItems(){items.clear(true,true);for(var i=0;i<8;i++)items.create(Phaser.Math.Between(100,700),Phaser.Math.Between(100,500),'gold').setData('value',Phaser.Math.Between(5,25));for(var i=0;i<3;i++)items.create(Phaser.Math.Between(100,700),Phaser.Math.Between(100,500),'potion').setData('heal',30);items.create(Phaser.Math.Between(100,700),Phaser.Math.Between(100,500),'keyRed');items.create(Phaser.Math.Between(100,700),Phaser.Math.Between(100,500),'keyBlue');items.create(Phaser.Math.Between(100,700),Phaser.Math.Between(100,500),'keyGreen');}
+
+function attackEnemy(player,enemy){if(gameState.attacking)return;gameState.attacking=true;this.tweens.add({targets:player,scaleX:1.5,duration:100,yoyo:true,onComplete:()=>{gameState.attacking=false;}});var hp=enemy.getData('hp')-gameState.attack;enemy.setData('hp',hp);var angle=Phaser.Math.Angle.Between(player.x,player.y,enemy.x,enemy.y);enemy.setVelocity(Math.cos(angle)*200,Math.sin(angle)*200);this.cameras.main.shake(50,0.005);if(hp<=0){enemy.destroy();gameState.xp+=enemy.getData('xp');gameState.gold+=enemy.getData('xp');checkLevelUp.call(this);scoreText.setText('Gold: '+gameState.gold);}}
+function collectItem(player,item){var key=item.texture.key;if(key==='gold'){gameState.gold+=item.getData('value')||10;scoreText.setText('Gold: '+gameState.gold);}else if(key==='potion'){gameState.hp=Math.min(gameState.hp+(item.getData('heal')||20),gameState.maxHp);updateHealthText();}else if(key==='keyRed'){keys.red=true;}else if(key==='keyBlue'){keys.blue=true;}else if(key==='keyGreen'){keys.green=true;}item.destroy();this.tweens.add({targets:player,scale:1.2,duration:100,yoyo:true});}
+function checkLevelUp(){var xpNeeded=gameState.level*50;if(gameState.xp>=xpNeeded){gameState.level++;gameState.xp-=xpNeeded;gameState.maxHp+=20;gameState.hp=gameState.maxHp;gameState.attack+=5;levelText.setText('Level: '+gameState.level+' XP: '+gameState.xp);this.cameras.main.flash(300,0,255,0);spawnEnemies.call(this);spawnItems.call(this);}else{levelText.setText('Level: '+gameState.level+' XP: '+gameState.xp);}}
+function updateHealthText(){healthText.setText('HP: '+gameState.hp+'/'+gameState.maxHp);}
+function gameOver(){gameState.isGameOver=true;var c=this.add.container(400,300);c.add(this.add.rectangle(0,0,800,600,0,0.9));c.add(this.add.text(0,-60,'GAME OVER',{fontSize:'72px',fill:'#ff0000',stroke:'#fff',strokeThickness:6}).setOrigin(0.5));c.add(this.add.text(0,10,'Gold: '+gameState.gold,{fontSize:'36px',fill:'#ffd700'}).setOrigin(0.5));c.add(this.add.text(0,60,'Level: '+gameState.level,{fontSize:'28px',fill:'#0ff'}).setOrigin(0.5));var btn=this.add.rectangle(0,140,180,55,0x00ff00).setInteractive({useHandCursor:true});c.add(this.add.text(0,140,'PLAY AGAIN',{fontSize:'24px',fill:'#000'}).setOrigin(0.5));btn.on('pointerdown',()=>{gameState={hp:100,maxHp:100,xp:0,level:1,gold:0,attack:10,isGameOver:false,attacking:false};this.scene.restart();});}
+function update(){
+  if(gameState.isGameOver)return;
+  var speed=160;player.setVelocity(0);
+  if(cursors.left.isDown)player.setVelocityX(-speed);else if(cursors.right.isDown)player.setVelocityX(speed);
+  if(cursors.up.isDown)player.setVelocityY(-speed);else if(cursors.down.isDown)player.setVelocityY(speed);
+  enemies.children.each(e=>{if(!e.active)return;var dist=Phaser.Math.Distance.Between(e.x,e.y,player.x,player.y);if(dist<200){this.physics.moveToObject(e,player,40);}else{e.setVelocity(0);}});
+  enemies.children.each(e=>{if(!e.active)return;if(Phaser.Math.Distance.Between(e.x,e.y,player.x,player.y)<25){gameState.hp-=1;updateHealthText.call(this);this.cameras.main.shake(30,0.002);if(gameState.hp<=0)gameOver.call(this);}});
+}
+</script></body></html>`
+  ],
+
+  multiplayer: [
+    // Multiplayer-style shooter (vs AI)
+    `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Battle Arena</title><script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script></head><body>
+<script>
+var config={type:Phaser.AUTO,width:800,height:600,physics:{default:'arcade',debug:false},scene:{preload,create,update}};
+var game=new Phaser.Game(config);
+var player,enemies,bullets,enemyBullets,cursors,scoreText,killText,gameState={score:0,kills:0,isGameOver:false};
+var lastFire=0;
+
+function preload(){var g=this.make.graphics({x:0,y:0,add:false});g.fillStyle(0x00ff00,1);g.fillTriangle(20,0,40,35,0,35);g.generateTexture('player',40,35);g.clear();g.fillStyle(0xff0000,1);g.fillTriangle(20,0,40,35,0,35);g.generateTexture('enemy',40,35);g.clear();g.fillStyle(0xffff00,1);g.fillRect(0,0,6,12);g.generateTexture('bullet',6,12);g.destroy();}
+
+function create(){
+  player=this.physics.add.sprite(400,500,'player');player.setCollideWorldBounds(true);
+  enemies=this.physics.add.group();bullets=this.physics.add.group();enemyBullets=this.physics.add.group();
+  spawnEnemies.call(this);
+  this.physics.add.overlap(bullets,enemies,hitEnemy,null,this);this.physics.add.overlap(enemies,player,playerHit,null,this);this.physics.add.overlap(enemyBullets,player,playerHit,null,this);
+  scoreText=this.add.text(16,16,'Score: 0',{fontSize:'28px',fill:'#fff',stroke:'#000',strokeThickness:3});killText=this.add.text(16,50,'Kills: 0',{fontSize:'22px',fill:'#ff4444'});this.add.text(400,30,'ARROWS: move | SPACE: fire',{fontSize:'14px',fill:'#888'}).setOrigin(0.5);
+  cursors=this.input.keyboard.createCursorKeys();this.input.keyboard.on('keydown-SPACE',fireBullet,this);
+  this.time.addEvent({delay:2000,callback:spawnEnemies,callbackScope:this,loop:true});
+}
+
+function spawnEnemies(){if(gameState.isGameOver)return;var count=3+Math.floor(gameState.kills/5);for(var i=0;i<count;i++){var e=enemies.create(Phaser.Math.Between(50,750),Phaser.Math.Between(-100,-20),'enemy');e.setData('hp',3+Math.floor(gameState.kills/10));e.setVelocityY(Phaser.Math.Between(30,80));e.setData('canShoot',Math.random()>0.5);}}
+function fireBullet(){if(gameState.isGameOver||this.time.now-lastFire<300)return;lastFire=this.time.now;var b=bullets.create(player.x,player.y-15,'bullet');b.setVelocityY(-500);}
+function hitEnemy(bullet,enemy){bullet.destroy();var hp=enemy.getData('hp')-1;enemy.setData('hp',hp);this.cameras.main.shake(20,0.003);if(hp<=0){enemy.destroy();gameState.score+=100;gameState.kills++;scoreText.setText('Score: '+gameState.score);killText.setText('Kills: '+gameState.kills);for(var i=0;i<8;i++){var p=this.add.circle(enemy.x,enemy.y,5,0xff6600);this.tweens.add({targets:p,alpha:0,x:enemy.x+(Math.random()-0.5)*30,y:enemy.y+(Math.random()-0.5)*30,duration:200,onComplete:()=>p.destroy()});}}}
+function playerHit(player,obj){if(obj)obj.destroy();gameState.score=Math.max(0,gameState.score-50);scoreText.setText('Score: '+gameState.score);this.cameras.main.shake(100,0.01);this.cameras.main.flash(100,255,0,0);if(gameState.kills>=10&&gameState.score<0){gameOver.call(this);}}
+function gameOver(){gameState.isGameOver=true;var c=this.add.container(400,300);c.add(this.add.rectangle(0,0,800,600,0,0.9));c.add(this.add.text(0,-40,'GAME OVER',{fontSize:'72px',fill:'#ff0000',stroke:'#fff',strokeThickness:6}).setOrigin(0.5));c.add(this.add.text(0,30,'Kills: '+gameState.kills,{fontSize:'36px',fill:'#ff4444'}).setOrigin(0.5));var btn=this.add.rectangle(0,120,150,50,0x00ff00).setInteractive({useHandCursor:true});c.add(this.add.text(0,120,'PLAY',{fontSize:'24px',fill:'#000'}).setOrigin(0.5));btn.on('pointerdown',()=>this.scene.restart());}
+function update(){
+  if(gameState.isGameOver)return;
+  if(cursors.left.isDown)player.setVelocityX(-250);else if(cursors.right.isDown)player.setVelocityX(250);else player.setVelocityX(0);
+  if(cursors.up.isDown&&player.y>50)player.setVelocityY(-250);else if(cursors.down.isDown&&player.y<550)player.setVelocityY(250);
+  enemies.children.each(e=>{if(!e.active)return;if(e.y>0&&e.y<500&&e.getData('canShoot')&&Math.random()<0.01){var b=enemyBullets.create(e.x,e.y+15,'bullet');b.setVelocityY(200);}});
+  bullets.children.each(b=>{if(b.y<-20)b.destroy();});enemyBullets.children.each(b=>{if(b.y>620)b.destroy();});enemies.children.each(e=>{if(e.y>620){e.destroy();gameState.score-=25;scoreText.setText('Score: '+gameState.score);}});
+}
+</script></body></html>`
   ]
 };
 
@@ -824,22 +1046,19 @@ export class AIService {
   }
 
   async generateGameCode(spec: any, template: any): Promise<string> {
-    const type = (spec.type || 'platformer').toLowerCase();
-    let gameType = 'platformer';
-    if (type.includes('shoot')) gameType = 'shooter';
-    else if (type.includes('puzzle') || type.includes('match')) gameType = 'puzzle';
-    else if (type.includes('roguelike') || type.includes('dungeon')) gameType = 'platformer'; // Roguelike uses platformer
+    const description = spec.description || spec.originalDescription || '';
 
     try {
       const prompt = this.promptBuilder.buildGameGenerationPrompt(spec, template);
       const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 8000 });
       if (response.content && response.content.includes('Phaser.Game')) return response.content;
     } catch (err) {
-      console.log('[AI] Generation failed, using fallback:', err);
+      console.log('[AI] Generation failed, using smart fallback:', err);
     }
 
-    console.log('[AI] Using fallback game for type:', gameType);
-    return getRandomFallback(gameType);
+    // Use smart fallback selection based on user's description
+    console.log('[AI] Using smart fallback based on description:', description.slice(0, 50));
+    return selectBestFallback(description);
   }
 
   async health(): Promise<boolean> {
