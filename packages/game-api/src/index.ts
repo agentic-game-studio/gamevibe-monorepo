@@ -5,15 +5,15 @@ import { gamesRouter } from './routes/games.js';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
-const REQUEST_TIMEOUT = 120000; // 2 minute timeout for all requests
+const REQUEST_TIMEOUT = 180000; // 3 minute timeout (longer than AI's 2 min timeout)
 
 // Request timeout middleware
 app.use((req, res, next) => {
   const timeout = setTimeout(() => {
     if (!res.headersSent) {
-      res.status(503).json({
-        error: 'REQUEST_TIMEOUT',
-        message: 'The request took too long to process. Please try again with a simpler game description.'
+      res.status(504).json({
+        error: 'GENERATION_TIMEOUT',
+        message: 'The game generation took too long. Please try a simpler game description like "simple platformer game" or "basic shooter".'
       });
     }
   }, REQUEST_TIMEOUT);
