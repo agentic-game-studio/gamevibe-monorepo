@@ -48,7 +48,7 @@ function preload() {
   g.fillStyle(0xff00ff,1); g.fillCircle(14,14,14); g.generateTexture('enemyFast',28,28); g.clear();
   g.fillStyle(0xff8800,1); g.fillRect(0,0,35,35); g.generateTexture('enemyTank',35,35); g.clear();
   // Power-ups
-  g.fillStyle(0x00ff00,1); g.fillStar(15,15,5,15,7); g.generateTexture('powerStar',30,30); g.clear();
+  g.fillStyle(0x00ff00,1); g.fillTriangle(15,0,30,15,0,15); g.generateTexture('powerStar',30,30); g.clear();
   g.fillStyle(0xff0000,1); g.fillCircle(12,12,12); g.generateTexture('powerHeart',24,24); g.clear();
   g.fillStyle(0xffff00,1); g.fillRect(8,0,16,24); g.generateTexture('powerBolt',16,24); g.clear();
   g.fillStyle(0x00ffff,1); g.fillCircle(12,12,12); g.generateTexture('powerShield',24,24); g.destroy();
@@ -294,7 +294,7 @@ function preload() {
   g.fillStyle(0x374151,1); g.fillRect(0,0,200,30); g.generateTexture('platform',200,30); g.clear();
   g.fillStyle(0x4b5563,1); g.fillRect(0,0,100,20); g.generateTexture('platformSmall',100,20); g.clear();
   g.fillStyle(0xfbbf24,1); g.fillCircle(8,8,8); g.generateTexture('coin',16,16); g.clear();
-  g.fillStyle(0x06b6d4,1); g.fillStar(10,10,4,10,5); g.generateTexture('gem',20,20); g.clear();
+  g.fillStyle(0x06b6d4,1); g.fillTriangle(10,0,20,10,0,10); g.generateTexture('gem',20,20); g.clear();
   g.fillStyle(0xef4444,1); g.fillRect(0,0,25,25); g.generateTexture('enemy',25,25); g.clear();
   g.fillStyle(0xf97316,1); g.fillCircle(10,10,10); g.generateTexture('bat',20,20); g.clear();
   g.fillStyle(0x84cc16,1); g.fillRect(0,0,30,20); g.generateTexture('slime',30,20); g.clear();
@@ -663,9 +663,9 @@ var timerEvent, scoreText, movesText, timeText, comboText;
 function preload() {
   var g = this.make.graphics({x:0,y:0,add:false});
   var colors = [0xff4444,0x44ff44,0x4488ff,0xffff44,0xff44ff,0x44ffff];
-  colors.forEach((c,i)=>{g.clear();g.fillStyle(c,1);g.fillStar(22,22,5,22,10);g.generateTexture('gem'+i,44,44);});
+  colors.forEach((c,i)=>{g.clear();g.fillStyle(c,1);g.fillCircle(22,22,18);g.generateTexture('gem'+i,44,44);});
   // Special gems
-  g.clear();g.fillStyle(0xffffff,1);g.fillCircle(22,22,20);g.fillStyle(0x000000,1);g.fillStar(22,22,4,10,5);g.generateTexture('bomb',44,44);g.clear();
+  g.clear();g.fillStyle(0xffffff,1);g.fillCircle(22,22,20);g.fillStyle(0xff0000,1);g.fillCircle(22,22,10);g.generateTexture('bomb',44,44);g.clear();
   g.clear();g.fillStyle(0xffff00,1);g.fillRect(10,0,24,44);g.generateTexture('lightning',44,44);g.clear();
   g.clear();g.fillStyle(0xff0000,1);g.fillCircle(22,22,20);g.fillStyle(0xffffff,1);g.fillRect(18,10,8,24);g.generateTexture('fire',44,44);g.destroy();
 }
