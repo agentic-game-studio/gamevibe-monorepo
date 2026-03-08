@@ -11,7 +11,7 @@ export class GameCompiler {
     assets: any;
     html?: string;
   }> {
-    let compiledCode = code;
+    let compiledCode = this.cleanMarkdown(code);
     
     // Add Phaser CDN if requested
     if (options.includePhaserCDN) {
@@ -155,5 +155,70 @@ ${code}
     
     const base64 = Buffer.from(canvas).toString('base64');
     return `data:image/svg+xml;base64,${base64}`;
+}
+  // Clean markdown formatting from AI-generated code
+  private cleanMarkdown(code: string): string {
+    // If the code already starts with <!DOCTYPE or <html, it's probably clean
+    if (code.trim().startsWith('<!DOCTYPE') || code.trim().startsWith('<html')) {
+      // Check if there's markdown before the html and extract just the html
+      const htmlMatch = code.match(/<html[\s\S]*<\/html>/i);
+      if (htmlMatch) {
+        return htmlMatch[0];
+      }
+      // Strip any leading text before <html>
+      const stripMatch = code.match(/<html/i);
+      if (stripMatch) {
+        return code.substring(stripMatch.index!);
+      }
+      return code;
+    }
+
+    // Try to extract code block content
+    // Match ```html or ```javascript or ``` and capture content
+    const codeBlockMatch = code.match(/```(?:html|javascript)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      let extracted = codeBlockMatch[1].trim();
+      // If it starts with <!DOCTYPE or <html, use it
+      if (extracted.startsWith('<!DOCTYPE') || extracted.startsWith('<html')) {
+        return extracted;
+      }
+      // Otherwise wrap in basic HTML
+      return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+</head>
+<body>
+<script>
+${extracted}
+</script>
+</body>
+</html>`;
+    }
+
+    // If there's a script tag, try to extract from there
+    const scriptMatch = code.match(/<script[\s\S]*?>([\s\S]*?)<\/script>/i);
+    if (scriptMatch) {
+      const scriptContent = scriptMatch[1].trim();
+      // If we have a Phaser.Game, wrap it properly
+      if (scriptContent.includes('Phaser.Game') || scriptContent.includes('new Phaser.Game')) {
+        return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+</head>
+<body>
+<script>
+${scriptContent}
+</script>
+</body>
+</html>`;
+      }
+    }
+
+    // Last resort: return as-is (might work if it's clean)
+    return code;
   }
 }
