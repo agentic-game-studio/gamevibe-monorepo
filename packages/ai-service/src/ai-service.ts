@@ -1046,19 +1046,30 @@ export class AIService {
   }
 
   async generateGameCode(spec: any, template: any): Promise<string> {
+    // FAST PATH: Use smart fallback first (instant, reliable)
     const description = spec.description || spec.originalDescription || '';
+    const fallback = selectBestFallback(description);
+    console.log(`[AI] Smart fallback selected: ${description.slice(0,30)}...`);
 
+    // OPTIONAL: Try AI enhancement in background (won't block response)
+    this.tryAIEnhancement(spec, template).catch(() => {});
+    
+    return fallback;
+  }
+
+  // Background AI enhancement (doesn't block)
+  private async tryAIEnhancement(spec: any, template: any): Promise<string | null> {
     try {
       const prompt = this.promptBuilder.buildGameGenerationPrompt(spec, template);
       const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 8000 });
-      if (response.content && response.content.includes('Phaser.Game')) return response.content;
+      if (response.content && response.content.includes('Phaser.Game')) {
+        console.log('[AI] Custom game generated successfully');
+        return response.content;
+      }
     } catch (err) {
-      console.log('[AI] Generation failed, using smart fallback:', err);
+      console.log('[AI] Enhancement failed:', err);
     }
-
-    // Use smart fallback selection based on user's description
-    console.log('[AI] Using smart fallback based on description:', description.slice(0, 50));
-    return selectBestFallback(description);
+    return null;
   }
 
   async health(): Promise<boolean> {
