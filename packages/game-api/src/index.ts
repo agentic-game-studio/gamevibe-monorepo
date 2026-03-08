@@ -1,4 +1,5 @@
 import 'dotenv/config';
+console.log('MINIMAX_API_KEY:', process.env.MINIMAX_API_KEY ? 'SET' : 'NOT SET');
 import express from 'express';
 import cors from 'cors';
 import { gamesRouter } from './routes/games.js';

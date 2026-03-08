@@ -1008,7 +1008,7 @@ export class AIService {
     try {
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.minimaxApiKey },
+        headers: { 'Content-Type': 'application/json', 'x-api-key': this.minimaxApiKey },
         body: JSON.stringify(body),
         signal: controller.signal
       });
@@ -1046,25 +1046,64 @@ export class AIService {
   }
 
   async generateGameCode(spec: any, template: any): Promise<string> {
-    // FAST PATH: Use smart fallback first (instant, reliable)
     const description = spec.description || spec.originalDescription || '';
-    const fallback = selectBestFallback(description);
-    console.log(`[AI] Smart fallback selected: ${description.slice(0,30)}...`);
+    const useAIBypass = spec.useAI === true || spec.forceAI === true;
+    const useOnlyFallback = spec.useFallbackOnly === true;
+    
+    console.log(`[AI] Request: "${description.slice(0,50)}..."`);
+    console.log(`[AI] Options: useAIBypass=${useAIBypass}, useOnlyFallback=${useOnlyFallback}`);
 
-    // OPTIONAL: Try AI enhancement in background (won't block response)
-    this.tryAIEnhancement(spec, template).catch(() => {});
+    // OPTION 1: Bypass fallback, use AI only (slow but custom)
+    if (useAIBypass) {
+      console.log('[AI] BYPASS MODE: Using AI only (may take 1-2 minutes)...');
+      try {
+        const prompt = this.promptBuilder.buildGameGenerationPrompt(spec, template);
+        const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 8000 });
+        if (response.content && response.content.includes('Phaser.Game')) {
+          console.log('[AI] Bypass: Custom game generated!');
+          return response.content;
+        }
+      } catch (err) {
+        console.log('[AI] Bypass failed:', err);
+      }
+      // Fall through to fallback if AI fails
+    }
+
+    // DEFAULT: Use smart fallback (instant, reliable)
+    const fallback = selectBestFallback(description);
+    console.log(`[AI] Using smart fallback: ${fallback.substring(20, 80)}...`);
+
+    // Try AI enhancement in background (won't block response)
+    if (!useOnlyFallback) {
+      this.tryAIEnhancement(spec, template).then(enhanced => {
+        if (enhanced) console.log('[AI] Background: Custom game ready for next request');
+      }).catch(() => {});
+    }
     
     return fallback;
   }
 
   // Background AI enhancement (doesn't block)
   private async tryAIEnhancement(spec: any, template: any): Promise<string | null> {
+    const description = spec.description || spec.originalDescription || '';
+    
     try {
       const prompt = this.promptBuilder.buildGameGenerationPrompt(spec, template);
+      console.log('[AI] ===== PROMPT SENT TO MINIMAX =====');
+      console.log(prompt);
+      console.log('[AI] ======================================');
+      
       const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 8000 });
+      
+      console.log('[AI] ===== RAW RESPONSE FROM MINIMAX =====');
+      console.log(response.content ? response.content.substring(0, 500) + '...' : 'EMPTY');
+      console.log('[AI] =====================================');
+      
       if (response.content && response.content.includes('Phaser.Game')) {
         console.log('[AI] Custom game generated successfully');
         return response.content;
+      } else {
+        console.log('[AI] Response does not contain Phaser.Game, using fallback');
       }
     } catch (err) {
       console.log('[AI] Enhancement failed:', err);
