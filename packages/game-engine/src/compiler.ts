@@ -14,7 +14,7 @@ export class GameCompiler {
     let compiledCode = this.cleanMarkdown(code);
     
     // Add Phaser CDN if requested
-    if (options.includePhaserCDN) {
+    if (options.includePhaserCDN && !compiledCode.trim().startsWith("<!DOCTYPE") && !compiledCode.trim().startsWith("<html")) {
       compiledCode = this.wrapWithHTML(compiledCode, options.metadata);
     }
     

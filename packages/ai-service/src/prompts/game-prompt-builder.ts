@@ -5,52 +5,20 @@ type GameTypeKey = 'platformer' | 'shooter' | 'puzzle';
 
 export class GamePromptBuilder {
   buildGameGenerationPrompt(spec: GameSpec, template: GameTemplate & { assets?: Record<string, string> }): string {
-    const gameType = this.normalizeGameType(spec.type);
-    const isShooter = gameType === 'shooter';
-    const isPuzzle = gameType === 'puzzle';
+    // Use user's actual description, not just the type
+    const userDescription = spec.description || spec.originalDescription || spec.type || 'platformer game';
+    
+    // Include user's description in the prompt so AI understands what they want
+    return `Create a custom Phaser.js game based on this description: "${userDescription}"
 
-    let gameCode = '';
-
-    if (isShooter) {
-      gameCode = `Create a complete Phaser.js space shooter game. Requirements:
-- Player ship at bottom, moves left/right with arrow keys
-- Space to shoot bullets upward
-- Enemies spawn from top, move downward
-- Collision: bullet kills enemy (+10 points), enemy hits player (-1 life)
-- 3 lives, game over when 0
-- Score display at top left
-- Restart button on game over
-- Use Phaser 3 arcade physics
-- Graphics: generate textures with graphics (ship=triangle, bullet=rectangle, enemy=circle)
-- ALL in one HTML file with Phaser 3.70`;
-    } else if (isPuzzle) {
-      gameCode = `Create a complete Phaser.js match-3 puzzle game. Requirements:
-- 8x8 grid of colored gems
-- Click two adjacent gems to swap
-- Match 3+ same color to clear and score
-- New gems fall from top after clear
-- 30 moves to get high score
-- Score display at top
-- Game over when moves = 0
-- Use Phaser 3
-- ALL in one HTML file with Phaser 3.70`;
-    } else {
-      gameCode = `Create a complete Phaser.js platformer game. Requirements:
-- Player (green triangle) at left, moves with arrow keys
-- Jump with up arrow, gravity pulls down
-- Multiple platforms at different heights
-- Collect coins (gold circles) for +10 points each
-- Enemies (red squares) patrol left/right
-- Jump on enemies to kill (+50 points), touch from side = lose life
-- 3 lives, game over when 0
-- Score and lives displayed at top
-- Restart button on game over
-- Use Phaser 3 arcade physics with gravity
-- Graphics: generate textures with graphics (player=triangle, platform=rect, coin=circle, enemy=square)
-- ALL code in one HTML file with Phaser 3.70`;
-    }
-
-    return gameCode;
+Requirements:
+- Implement the game EXACTLY as described in the description above
+- Use Phaser 3.70 with arcade physics
+- Generate all graphics textures programmatically (no external images)
+- Include: player controls, scoring, lives system, game over state
+- ALL code in ONE complete HTML file
+- Start with <!DOCTYPE html><html> and end with </html>
+- Do NOT include any markdown, explanations, or additional text - ONLY the raw HTML code`;
   }
 
   private normalizeGameType(type: string | undefined): string {
