@@ -1058,7 +1058,7 @@ export class AIService {
       console.log('[AI] BYPASS MODE: Using AI only (may take 1-2 minutes)...');
       try {
         const prompt = this.promptBuilder.buildGameGenerationPrompt(spec, template);
-        const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 8000 });
+        const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 16000 });
         if (response.content && response.content.includes('Phaser.Game')) {
           console.log('[AI] Bypass: Custom game generated!');
           return response.content;
@@ -1092,9 +1092,9 @@ export class AIService {
       console.log('[AI] ===== PROMPT SENT TO MINIMAX =====');
       console.log(prompt);
       console.log('[AI] ======================================');
-      
-      const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 8000 });
-      
+
+      const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 16000 });
+
       console.log('[AI] ===== RAW RESPONSE FROM MINIMAX =====');
       console.log(response.content ? response.content.substring(0, 500) + '...' : 'EMPTY');
       console.log('[AI] =====================================');
