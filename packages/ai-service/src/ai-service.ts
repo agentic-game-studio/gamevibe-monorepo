@@ -7,6 +7,7 @@ import {
   generateCacheKey
 } from '@gamevibe/shared';
 import { GamePromptBuilder } from './prompts/index.js';
+import { GamePostProcessor } from './game-post-processor.js';
 
 export interface AIServiceConfig {
   minimaxApiKey: string;
@@ -994,11 +995,13 @@ export class AIService {
   private queue: PQueue;
   private cache?: AIServiceConfig['redis'];
   private promptBuilder: GamePromptBuilder;
+  private postProcessor: GamePostProcessor;
 
   constructor(config: AIServiceConfig) {
     this.minimaxApiKey = config.minimaxApiKey;
     this.cache = config.redis;
     this.promptBuilder = new GamePromptBuilder();
+    this.postProcessor = new GamePostProcessor();
     this.queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 3 });
   }
 
@@ -1061,7 +1064,7 @@ export class AIService {
         const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 16000 });
         if (response.content && response.content.includes('Phaser.Game')) {
           console.log('[AI] Bypass: Custom game generated!');
-          return response.content;
+          return this.postProcessor.enhance(response.content);
         }
       } catch (err) {
         console.log('[AI] Bypass failed:', err);
@@ -1070,8 +1073,11 @@ export class AIService {
     }
 
     // DEFAULT: Use smart fallback (instant, reliable)
-    const fallback = selectBestFallback(description);
+    let fallback = selectBestFallback(description);
     console.log(`[AI] Using smart fallback: ${fallback.substring(20, 80)}...`);
+
+    // Apply post-processing to fallback
+    fallback = this.postProcessor.enhance(fallback);
 
     // Try AI enhancement in background (won't block response)
     if (!useOnlyFallback) {
@@ -1079,7 +1085,7 @@ export class AIService {
         if (enhanced) console.log('[AI] Background: Custom game ready for next request');
       }).catch(() => {});
     }
-    
+
     return fallback;
   }
 
@@ -1101,7 +1107,7 @@ export class AIService {
       
       if (response.content && response.content.includes('Phaser.Game')) {
         console.log('[AI] Custom game generated successfully');
-        return response.content;
+        return this.postProcessor.enhance(response.content);
       } else {
         console.log('[AI] Response does not contain Phaser.Game, using fallback');
       }
