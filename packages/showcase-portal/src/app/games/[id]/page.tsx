@@ -16,12 +16,13 @@ export default function GamePlayPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
-    const id = params.id as string;
-    if (!id) {
+    if (!params || !params.id) {
       setError('Invalid game ID');
       setLoading(false);
       return;
     }
+
+    const id = params.id as string;
 
     const foundGame = getGameById(id);
     if (foundGame) {
@@ -30,7 +31,7 @@ export default function GamePlayPage() {
       setError('Game not found. It may have been generated in a previous session.');
     }
     setLoading(false);
-  }, [params.id]);
+  }, [params]);
 
   const handleRestart = () => {
     setGameKey(prev => prev + 1);
