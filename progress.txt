@@ -15,3 +15,11 @@
   - Smart keyword matching ensures user intent is respected
   - Pre-built fallbacks provide instant delivery vs AI timeout issues
   - All new games use Phaser 3.70 and generated graphics textures
+
+## 2026-03-08 - Fix TypeScript null check in game page
+- Fixed params null check in showcase-portal game page
+- Added null guard before accessing params.id
+- Changed useEffect dependency from params.id to params
+- **Learnings for future iterations:**
+  - Next.js 15 useParams can return null, always check before accessing id
+  - Use full params object in dependency array to avoid undefined issues
