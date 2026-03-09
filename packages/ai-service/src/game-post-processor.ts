@@ -111,7 +111,8 @@ function powerUpSound() {
     }
 
     // Also try to find any bullet firing pattern and add sound
-    code = code.replace(/(bullets?\.create\([^;]+;?)/gi, 'shootSound();\n$1');
+    // Be more specific to avoid matching enemy bullets
+    code = code.replace(/(?<!enemy)bullets\.create\(/gi, 'shootSound();$1');
     code = code.replace(/(setVelocityY\(-[0-9]+\))/gi, '$1');
 
     // Add particle effects to any destroy/disable call
