@@ -22,6 +22,9 @@ export class GamePostProcessor {
       enhanced = this.injectComboSystem(enhanced);
     }
 
+    // Add enemy variety if missing
+    enhanced = this.injectEnemyVariety(enhanced);
+
     return enhanced;
   }
 
@@ -110,6 +113,45 @@ function powerUpSound() {
     // Also try to find any bullet firing pattern and add sound
     code = code.replace(/(bullets?\.create\([^;]+;?)/gi, 'shootSound();\n$1');
     code = code.replace(/(setVelocityY\(-[0-9]+\))/gi, '$1');
+
+    // Add particle effects to enemy death if not present
+    // Handle both hitEnemy and attackEnemy functions - even minified code
+    if (!/for.*pi.*add\.circle/i.test(code)) {
+      // Look for enemy.destroy() and add particles after it
+      if (/enemy\.destroy\(\)/i.test(code)) {
+        code = code.replace(
+          /enemy\.destroy\(\)/gi,
+          'enemy.destroy();for(var pi=0;pi<15;pi++){var pp=this.add.circle(enemy.x,enemy.y,4,0xff6600);this.tweens.add({targets:pp,alpha:0,x:enemy.x+(Math.random()-0.5)*60,y:enemy.y+(Math.random()-0.5)*60,scale:0,duration:400,onComplete:function(){pp.destroy()}})}'
+        );
+      }
+    }
+
+    return code;
+  }
+
+  private injectEnemyVariety(code: string): string {
+    // Add different enemy textures if variety is missing
+    // Check if the game already has enemy variety
+    const hasEnemyTypes = /enemyFast|enemyTank|enemyShooter|enemyBoss/i.test(code);
+    if (hasEnemyTypes) return code;
+
+    // Add enemy texture generation to preload
+    if (/function preload\(\)/i.test(code) && !/enemyFast|enemyTank/i.test(code)) {
+      // Add more enemy textures after existing textures
+      code = code.replace(
+        /(g\.generateTexture\('enemy'[^;]*;?)/i,
+        "$1\n  g.fillStyle(0x22c55e,1);g.fillCircle(15,15,15);g.generateTexture('enemyFast',30,30);g.clear();\n  g.fillStyle(0xa855f7,1);g.fillRect(0,0,30,30);g.generateTexture('enemyTank',30,30);g.clear();"
+      );
+    }
+
+    // Modify spawn function to create different enemy types
+    if (/function.*spawnEnemies/i.test(code)) {
+      // Replace simple enemy creation with varied types
+      code = code.replace(
+        /(enemies\.create\([^,]+,\s*[^,]+,\s*'enemy'\))/gi,
+        "Math.random() < 0.3 ? (Math.random() < 0.5 ? enemies.create($1.replace('enemy','enemyFast')) : enemies.create($1.replace('enemy','enemyTank'))) : enemies.create$1"
+      );
+    }
 
     return code;
   }
