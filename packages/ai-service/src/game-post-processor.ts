@@ -22,8 +22,7 @@ export class GamePostProcessor {
       enhanced = this.injectComboSystem(enhanced);
     }
 
-    // Add enemy variety if missing
-    enhanced = this.injectEnemyVariety(enhanced);
+    // Skip enemy variety injection - causes broken code in minified templates
 
     return enhanced;
   }
@@ -131,33 +130,6 @@ function powerUpSound() {
           '$1-=;this.cameras.main.shake(50,0.003)'
         );
       }
-    }
-
-    return code;
-  }
-
-  private injectEnemyVariety(code: string): string {
-    // Add different enemy textures if variety is missing
-    // Check if the game already has enemy variety
-    const hasEnemyTypes = /enemyFast|enemyTank|enemyShooter|enemyBoss/i.test(code);
-    if (hasEnemyTypes) return code;
-
-    // Add enemy texture generation to preload
-    if (/function preload\(\)/i.test(code) && !/enemyFast|enemyTank/i.test(code)) {
-      // Add more enemy textures after existing textures
-      code = code.replace(
-        /(g\.generateTexture\('enemy'[^;]*;?)/i,
-        "$1\n  g.fillStyle(0x22c55e,1);g.fillCircle(15,15,15);g.generateTexture('enemyFast',30,30);g.clear();\n  g.fillStyle(0xa855f7,1);g.fillRect(0,0,30,30);g.generateTexture('enemyTank',30,30);g.clear();"
-      );
-    }
-
-    // Modify spawn function to create different enemy types
-    if (/function.*spawnEnemies/i.test(code)) {
-      // Replace simple enemy creation with varied types
-      code = code.replace(
-        /(enemies\.create\([^,]+,\s*[^,]+,\s*'enemy'\))/gi,
-        "Math.random() < 0.3 ? (Math.random() < 0.5 ? enemies.create($1.replace('enemy','enemyFast')) : enemies.create($1.replace('enemy','enemyTank'))) : enemies.create$1"
-      );
     }
 
     return code;
