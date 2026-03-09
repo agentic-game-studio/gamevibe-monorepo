@@ -114,14 +114,22 @@ function powerUpSound() {
     code = code.replace(/(bullets?\.create\([^;]+;?)/gi, 'shootSound();\n$1');
     code = code.replace(/(setVelocityY\(-[0-9]+\))/gi, '$1');
 
-    // Add particle effects to enemy death if not present
-    // Handle both hitEnemy and attackEnemy functions - even minified code
+    // Add particle effects to any destroy/disable call
     if (!/for.*pi.*add\.circle/i.test(code)) {
-      // Look for enemy.destroy() and add particles after it
-      if (/enemy\.destroy\(\)/i.test(code)) {
+      // Look for any .destroy() and add generic particles
+      if (/\.destroy\(\)/i.test(code)) {
         code = code.replace(
-          /enemy\.destroy\(\)/gi,
-          'enemy.destroy();for(var pi=0;pi<15;pi++){var pp=this.add.circle(enemy.x,enemy.y,4,0xff6600);this.tweens.add({targets:pp,alpha:0,x:enemy.x+(Math.random()-0.5)*60,y:enemy.y+(Math.random()-0.5)*60,scale:0,duration:400,onComplete:function(){pp.destroy()}})}'
+          /\.destroy\(\)/gi,
+          '.destroy();this.cameras.main.shake(30,0.002)'
+        );
+      }
+
+      // Add camera shake for game feel
+      if (!/cameras\.main\.shake/i.test(code)) {
+        // Add shake to any damage/collision
+        code = code.replace(
+          /(hp|lives|health).*-=/gi,
+          '$1-=;this.cameras.main.shake(50,0.003)'
         );
       }
     }
