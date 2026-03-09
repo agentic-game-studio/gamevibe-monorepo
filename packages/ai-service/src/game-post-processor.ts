@@ -110,10 +110,8 @@ function powerUpSound() {
       code = code.replace(/(function.*(?:collect|powerUp)[^{]*\{)/i, '$1\n  powerUpSound();');
     }
 
-    // Also try to find any bullet firing pattern and add sound
-    // Be more specific to avoid matching enemy bullets
-    code = code.replace(/(?<!enemy)bullets\.create\(/gi, 'shootSound();$1');
-    code = code.replace(/(setVelocityY\(-[0-9]+\))/gi, '$1');
+    // Skip automatic bullet sound injection - fireBullet already gets sound
+    // The automatic injection causes issues with minified code
 
     // Add particle effects to any destroy/disable call
     if (!/for.*pi.*add\.circle/i.test(code)) {
