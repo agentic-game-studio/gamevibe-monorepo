@@ -16,8 +16,8 @@
   },
   "dependencies": {
     "@gamevibe/shared": "workspace:*",
-    "@discord/embedded-app-sdk": "^1.0.0",
-    "colyseus.js": "^0.16.0",
+    "@discord/embedded-app-sdk": "^2.4.0",
+    "colyseus.js": "^0.16.22",
     "phaser": "^3.70.0"
   },
   "devDependencies": {
