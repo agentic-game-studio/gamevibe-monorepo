@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import {
   GeneratedGame,
   GameSpec,
+  GameType,
   generateGameId
 } from '@gamevibe/shared';
 import { AIService } from '@gamevibe/ai-service';
@@ -102,7 +103,7 @@ export class GameGeneratorService {
     });
 
     // Use detected type to override AI's type guess (which may be wrong)
-    const finalType = detectedType !== 'other' ? detectedType : (gameSpec.type || 'other');
+    const finalType = (detectedType !== 'other' ? detectedType : gameSpec.type || 'other') as GameType;
 
     const completeSpec: GameSpec = {
       ...gameSpec,
