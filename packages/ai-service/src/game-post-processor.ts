@@ -12,22 +12,131 @@ export class GamePostProcessor {
   enhance(code: string): string {
     let enhanced = code;
 
-    // Add audio system if not present
-    if (!/audioCtx|AudioContext/i.test(code)) {
-      enhanced = this.injectAudioSystem(enhanced);
-    }
+    // Fix common AI generation bugs FIRST
+    enhanced = this.fixCommonBugs(enhanced);
+
+    // ALWAYS remove broken sound functions and inject clean ones
+    // The AI often generates broken audio code with infinite recursion
+    enhanced = this.injectAudioSystem(enhanced);
 
     // Add combo system if not present
     if (!/comboCount|comboMultiplier/i.test(code)) {
       enhanced = this.injectComboSystem(enhanced);
     }
 
-    // Skip enemy variety injection - causes broken code in minified templates
-
     return enhanced;
   }
 
+  /**
+   * Fix common AI generation bugs
+   */
+  private fixCommonBugs(code: string): string {
+    let fixed = code;
+
+    // Fix infinite recursion - remove ANY function that calls itself as first statement
+    // Pattern: function name() { name();
+    fixed = fixed.replace(
+      /function\s+(\w+)\s*\(\)\s*\{\s*\1\s*\(\s*\)\s*;/gi,
+      'function $1() {'
+    );
+
+    // Also fix the specific case with newlines: function powerUpSound() {\n  powerUpSound();
+    fixed = fixed.replace(
+      /function\s+(powerUpSound|shootSound|explosionSound)\s*\(\)\s*\{[\s\n\r]*\1\s*\(\)[\s\n\r]*;[\s\S]*?\}/gi,
+      ''
+    );
+
+    // Fix missing parenthesis: this.add.text(00,'Depth:' -> this.add.text(0,'Depth:'
+    fixed = fixed.replace(/this\.add\.text\(\d+0,/g, "this.add.text(0,");
+
+    // Fix truncated refreshBody: .refreshBod} -> .refreshBody()}
+    fixed = fixed.replace(/\.refreshBod\}/g, '.refreshBody()}');
+
+    // Fix double commas: ,, -> ,
+    fixed = fixed.replace(/,,/g, ',');
+
+    // Fix fontW instead of fontWeight
+    fixed = fixed.replace(/fontW\}/g, "fontWeight: 'bold'}");
+
+    // Fix truncated function names: functionObjects -> function spawnObjects
+    fixed = fixed.replace(/function\s+Objects\(\)/g, 'function spawnObjects()');
+
+    // Fix truncated gameState: gaState -> gameState
+    fixed = fixed.replace(/gaState\./g, 'gameState.');
+
+    // Fix NEW truncated gameState patterns: gameSta. and gameStat.
+    fixed = fixed.replace(/gameSta\./g, 'gameState.');
+    fixed = fixed.replace(/gameStat\./g, 'gameState.');
+
+    // Fix truncated spawnObjects: spacts() -> spawnObjects()
+    fixed = fixed.replace(/function\s+spacts\(\)/g, 'function spawnObjects()');
+    fixed = fixed.replace(/spacts\(\)\s*\{/g, 'spawnObjects() {');
+    fixed = fixed.replace(/spawnObjcts\(\)\s*\{/g, 'spawnObjects() {');
+
+    // Fix broken fontSize: fontSize:'fill:' -> fontSize + fill separately (more aggressive)
+    fixed = fixed.replace(/fontSize:'fill:'#([0-9a-fA-F]+)'/g, "fontSize:'14px',fill:'#$1'");
+    fixed = fixed.replace(/fontSize:'fill:'#([0-9a-fA-F]+)'/gi, "fontSize:'14px',fill:'#$1'");
+
+    // Fix truncated fontWe -> fontWeight (more aggressive)
+    fixed = fixed.replace(/fontWe\)/g, "fontWeight:'bold'})");
+    fixed = fixed.replace(/fontWe\)/gi, "fontWeight:'bold'})");
+
+    // Fix truncated text: this.add.tt( -> this.add.text(
+    fixed = fixed.replace(/this\.add\.tt\(/g, 'this.add.text(');
+
+    // Fix truncated refreshBody: .refre() -> .refreshBody()
+    fixed = fixed.replace(/\.refre\(\)/g, '.refreshBody()');
+
+    // Fix truncated function names (without function keyword): functionObjects() -> function spawnObjects()
+    fixed = fixed.replace(/functionObjects\(\)\s*\{/g, 'function spawnObjects() {');
+
+    // Fix truncated gameState: gaState -> gameState (more aggressive)
+    fixed = fixed.replace(/gaState\./g, 'gameState.');
+
+    return fixed;
+  }
+
+  /**
+   * Remove a function definition, handling nested braces properly
+   */
+  private removeFunction(code: string, funcName: string): string {
+    const regex = new RegExp(`function\\s+${funcName}\\s*\\([^)]*\\)\\s*\\{`, 'gi');
+    const match = code.match(regex);
+    if (!match) return code;
+
+    // Find the function start
+    const startIdx = code.search(regex);
+    if (startIdx === -1) return code;
+
+    // Count braces to find the matching closing brace
+    let braceCount = 0;
+    let inFunction = false;
+    let endIdx = startIdx;
+
+    for (let i = startIdx; i < code.length; i++) {
+      if (code[i] === '{') {
+        braceCount++;
+        inFunction = true;
+      } else if (code[i] === '}') {
+        braceCount--;
+        if (inFunction && braceCount === 0) {
+          endIdx = i + 1;
+          break;
+        }
+      }
+    }
+
+    // Remove the entire function
+    return code.slice(0, startIdx) + code.slice(endIdx);
+  }
+
   private injectAudioSystem(code: string): string {
+    // First, remove any broken sound functions that AI may have generated
+    // Use a more robust approach to handle nested braces
+    code = this.removeFunction(code, 'powerUpSound');
+    code = this.removeFunction(code, 'shootSound');
+    code = this.removeFunction(code, 'explosionSound');
+
     // Find the create() function and add audio initialization
     const audioSystem = `
 var audioCtx = null;
@@ -104,13 +213,15 @@ function powerUpSound() {
       code = code.replace(/(function.*hitEnemy[^{]*\{)/i, '$1\n  explosionSound();');
     }
 
-    // Add powerUpSound() call to powerup collection
-    if (/function.*collect.*Powerup/i.test(code) || /function.*powerUp/i.test(code)) {
-      code = code.replace(/(function.*(?:collect|powerUp)[^{]*\{)/i, '$1\n  powerUpSound();');
+    // Add powerUpSound() call to powerup collection - be specific to avoid matching inside function
+    // Only inject if not already present in collect function
+    if (!/collect.*powerup.*sound/i.test(code)) {
+      // Look for collectPowerup function definition (not inside it)
+      const collectPowerupMatch = code.match(/function\s+collect(?:ing)?Powerup\s*\([^)]*\)\s*\{/i);
+      if (collectPowerupMatch && !code.includes(collectPowerupMatch[0] + '\n  powerUpSound();')) {
+        code = code.replace(collectPowerupMatch[0], collectPowerupMatch[0] + '\n  powerUpSound();');
+      }
     }
-
-    // Skip automatic bullet sound injection - fireBullet already gets sound
-    // The automatic injection causes issues with minified code
 
     // Add particle effects to any destroy/disable call
     if (!/for.*pi.*add\.circle/i.test(code)) {

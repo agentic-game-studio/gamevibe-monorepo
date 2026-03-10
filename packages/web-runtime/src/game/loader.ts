@@ -49,7 +49,54 @@ export class GameLoader extends EventEmitter {
       let gameCode = gameData.code || '';
       console.log('🔍 Initial gameCode length:', gameCode.length);
       console.log('🔍 First 200 chars of gameCode:', gameCode.substring(0, 200));
-      
+
+      // Apply bug fixes to ALL code (before and after HTML extraction)
+      // 1. Remove infinite recursion in sound functions - more aggressive pattern
+      // Match function name followed by () with anything in between until closing brace
+      gameCode = gameCode.replace(
+        /function\s+(powerUpSound|shootSound|explosionSound)\s*\(\)\s*\{[^}]*?\1\s*\(\)[^}]*?\}/gi,
+        ''
+      );
+      // Also fix simple case on single line
+      gameCode = gameCode.replace(
+        /function\s+(powerUpSound|shootSound|explosionSound)\s*\(\)\s*\{\s*\1\s*\(\s*\)\s*;/gi,
+        'function $1() {'
+      );
+      // Also handle case where recursive call is on its own line with more code after
+      gameCode = gameCode.replace(
+        /function\s+(powerUpSound|shootSound|explosionSound)\s*\(\)\s*\{[\s\n\r]*\1\s*\(\)[\s\n\r]*;[\s\S]*?\}/gi,
+        ''
+      );
+      // 2. Fix truncated text: this.add.tt( -> this.add.text(
+      gameCode = gameCode.replace(/this\.add\.tt\(/g, 'this.add.text(');
+      // 3. Fix invalid numbers: this.add.text(00, -> this.add.text(0,
+      gameCode = gameCode.replace(/this\.add\.text\(\d+0,/g, 'this.add.text(0,');
+      // 4. Fix truncated refreshBody: .refreshBod} -> .refreshBody()
+      gameCode = gameCode.replace(/\.refreshBod\}/g, '.refreshBody()}');
+      // 5. Fix truncated refreshBody: .refre() -> .refreshBody()
+      gameCode = gameCode.replace(/\.refre\(\)/g, '.refreshBody()');
+      // 6. Fix fontW -> fontWeight
+      gameCode = gameCode.replace(/fontW\}/g, "fontWeight: 'bold'}");
+      // 7. Fix missing colon: ,bold' -> ,fontWeight:'bold'
+      gameCode = gameCode.replace(/,bold'\}/g, ",fontWeight:'bold'}");
+      // 8. Fix truncated function names: functionObjects -> function spawnObjects
+      gameCode = gameCode.replace(/function\s+Objects\(\)/g, 'function spawnObjects()');
+      // 9. Fix truncated gameState: gaState -> gameState
+      gameCode = gameCode.replace(/gaState\./g, 'gameState.');
+      // 9b. Fix NEW truncated gameState patterns: gameSta. and gameStat.
+      gameCode = gameCode.replace(/gameSta\./g, 'gameState.');
+      gameCode = gameCode.replace(/gameStat\./g, 'gameState.');
+      // 9c. Fix truncated spawnObjects: spacts() -> spawnObjects()
+      gameCode = gameCode.replace(/function\s+spacts\(\)/g, 'function spawnObjects()');
+      gameCode = gameCode.replace(/spacts\(\)\s*\{/g, 'spawnObjects() {');
+      gameCode = gameCode.replace(/spawnObjcts\(\)\s*\{/g, 'spawnObjects() {');
+      // 10. Fix broken fontSize: fontSize:'fill:' -> fontSize + fill separately
+      gameCode = gameCode.replace(/fontSize:'fill:'#([0-9a-fA-F]+)'/g, "fontSize:'14px',fill:'#$1'");
+      // 11. Fix truncated fontWe -> fontWeight
+      gameCode = gameCode.replace(/fontWe\)/g, "fontWeight:'bold'})");
+
+      console.log('🧹 After pre-fix, checking for HTML...');
+
       // Check if code contains HTML
       if (gameCode.includes('<!DOCTYPE html>') || gameCode.includes('<html>')) {
         console.log('📄 HTML detected, extracting JavaScript...');
@@ -75,8 +122,52 @@ export class GameLoader extends EventEmitter {
           
           // Trim whitespace
           gameCode = gameCode.trim();
-          
-          console.log('🧹 After markdown cleanup, length:', gameCode.length);
+
+          // Fix common AI generation bugs
+          // 1. Remove infinite recursion in sound functions (entire function)
+          gameCode = gameCode.replace(
+            /function\s+(powerUpSound|shootSound|explosionSound)\s*\(\)\s*\{[^}]*\{[^}]*\}[^}]*\}/gi,
+            ''
+          );
+          // Simpler approach: just remove the recursive call lines
+          gameCode = gameCode.replace(
+            /function\s+(powerUpSound|shootSound|explosionSound)\s*\(\)\s*\{\s*\1\s*\(\s*\)\s*;/gi,
+            'function $1() {'
+          );
+          // Also handle multi-line recursive calls
+          gameCode = gameCode.replace(
+            /function\s+(powerUpSound|shootSound|explosionSound)\s*\(\)\s*\{[\s\n\r]*\1\s*\(\)[^}]*\}/gi,
+            'function $1() {'
+          );
+          // 2. Fix truncated text: this.add.tt( -> this.add.text(
+          gameCode = gameCode.replace(/this\.add\.tt\(/g, 'this.add.text(');
+          // 3. Fix truncated refreshBody: .refre() -> .refreshBody()
+          gameCode = gameCode.replace(/\.refre\(\)/g, '.refreshBody()');
+          // 4. Fix fontW -> fontWeight
+          gameCode = gameCode.replace(/fontW\}/g, "fontWeight: 'bold'}");
+          // 5. Fix missing colon: ,bold' -> ,fontWeight:'bold'
+          gameCode = gameCode.replace(/,bold'\}/g, ",fontWeight:'bold'}");
+          // 6. Fix leftover semicolons after function removal
+          gameCode = gameCode.replace(/\}\s*;function/g, '} function');
+          // 7. Fix double semicolons
+          gameCode = gameCode.replace(/;;/g, ';');
+          // 8. Fix truncated function names: functionObjects -> function spawnObjects
+          gameCode = gameCode.replace(/functionObjects\(\)/g, 'function spawnObjects()');
+          // 9. Fix truncated gameState: gaState -> gameState
+          gameCode = gameCode.replace(/gaState\./g, 'gameState.');
+          // 9b. Fix NEW truncated gameState patterns: gameSta. and gameStat.
+          gameCode = gameCode.replace(/gameSta\./g, 'gameState.');
+          gameCode = gameCode.replace(/gameStat\./g, 'gameState.');
+          // 9c. Fix truncated spawnObjects: spacts() -> spawnObjects()
+          gameCode = gameCode.replace(/function\s+spacts\(\)/g, 'function spawnObjects()');
+          gameCode = gameCode.replace(/spacts\(\)\s*\{/g, 'spawnObjects() {');
+          gameCode = gameCode.replace(/spawnObjcts\(\)\s*\{/g, 'spawnObjects() {');
+          // 10. Fix broken fontSize: fontSize:'fill:' -> fontSize + fill separately
+          gameCode = gameCode.replace(/fontSize:'fill:'#([0-9a-fA-F]+)'/g, "fontSize:'14px',fill:'#$1'");
+          // 11. Fix truncated fontWe -> fontWeight
+          gameCode = gameCode.replace(/fontWe\)/g, "fontWeight:'bold'})");
+
+          console.log('🧹 After bug fixes, length:', gameCode.length);
           console.log('🧹 Cleaned code preview:', gameCode.substring(0, 100));
         } else {
           console.log('❌ No script tag found in HTML');
