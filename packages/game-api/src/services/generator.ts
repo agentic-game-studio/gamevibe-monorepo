@@ -83,16 +83,26 @@ function repairGeneratedCode(code: string): string {
   repaired = repaired.replace(/fontSill/g, 'fontSize');
 
   // Fix broken fontSize with fill nesting: fontSize:'fill:'#888' -> fontSize:'14px',fill:'#888'
+  // Only if there's no existing fontSize before
   repaired = repaired.replace(/fontSize:'fill:'#([^']+)'/g, "fontSize:'14px',fill:'#$1'");
-
-  // Fix missing comma in fontSize: fontSize:'14px'fill: -> fontSize:'14px',fill:
-  repaired = repaired.replace(/fontSize:'([^']+)'fill:/g, "fontSize:'$1',fill:");
 
   // Fix: {fontSize:'fill:'#888'} -> {fontSize:'14px',fill:'#888'}
   repaired = repaired.replace(/{fontSize:'fill:'#([^']+)'}/g, "{fontSize:'14px',fill:'#$1'}");
 
-  // Fix: fill:'# without fontSize - add default fontSize
-  repaired = repaired.replace(/fill:'#([^']+)'}(?!.*fontSize)/g, "fontSize:'14px',fill:'#$1'}");
+  // Remove duplicate fontSize keys: fontSize:'14px',fontSize:'14px' -> fontSize:'14px'
+  repaired = repaired.replace(/fontSize:'([^']+)',fontSize:'([^']+)'/g, "fontSize:'$1'");
+
+  // Fix: {b) -> {(b)
+  repaired = repaired.replace(/\(b\)->/g, '(b) =>');
+
+  // Fix: .setSc1) -> .setScale(4,1)
+  repaired = repaired.replace(/\.setSc1\)/g, '.setScale(4,1)');
+
+  // Fix: etOrigin -> .setOrigin
+  repaired = repaired.replace(/etOrigin/g, '.setOrigin');
+
+  // Fix: missing closing brace in arrow function - )} -> ) })
+  repaired = repaired.replace(/\)\s*}$/g, ') });');
 
   return repaired;
 }
