@@ -45,6 +45,7 @@ export function Footer() {
                   src="/images/logo.png"
                   alt="GameVibe"
                   fill
+                  sizes="36px"
                   className="object-contain"
                 />
               </div>

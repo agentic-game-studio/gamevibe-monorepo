@@ -1,0 +1,16 @@
+{
+  "name": "GameVibe AI",
+  "short_name": "GameVibe",
+  "description": "Create and play AI-generated games",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#fbbf24",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}
