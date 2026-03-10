@@ -18,6 +18,12 @@ function repairGeneratedCode(code: string): string {
   // Fix: .s.setOrigin -> .setOrigin (MUST BE FIRST)
   repaired = repaired.replace(/\.s\.setOrigin/g, '.setOrigin');
 
+  // Fix: font14px' -> fontSize:'14px'
+  repaired = repaired.replace(/font14px'/g, "fontSize:'14px'");
+
+  // Fix: PfontSize: -> PLAY AGAIN (truncated button text)
+  repaired = repaired.replace(/PfontSize:/g, '');
+
   // Fix function name truncation: functionObjects -> spawnObjects
   repaired = repaired.replace(/functionObjects\s*\(/g, 'spawnObjects(');
   repaired = repaired.replace(/function\s+functionObjects\s*\(/g, 'function spawnObjects(');
