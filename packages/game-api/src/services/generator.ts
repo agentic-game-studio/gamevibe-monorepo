@@ -78,6 +78,16 @@ function repairGeneratedCode(code: string): string {
   // Fix: .destroy(); - remove stray semicolon before closing brace
   repaired = repaired.replace(/\.destroy\(\);(\s*)\}/g, '.destroy();$1}');
 
+  // Fix: fontSill -> fontSize
+  repaired = repaired.replace(/fontSill/g, 'fontSize');
+
+  // Fix broken fontSize with fill nesting: fontSize:'fill:'#888' -> fontSize:'14px',fill:'#888'
+  // Also handles: fontSize:'14px' or similar patterns
+  repaired = repaired.replace(/fontSize:'fill:'#([^']+)'/g, "fontSize:'14px',fill:'#$1'");
+
+  // Fix missing comma in fontSize: fontSize:'14px'fill: -> fontSize:'14px',fill:
+  repaired = repaired.replace(/fontSize:'([^']+)'fill:/g, "fontSize:'$1',fill:");
+
   return repaired;
 }
 
