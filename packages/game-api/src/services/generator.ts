@@ -15,8 +15,11 @@ import { GameGenerationRequest } from '../types.js';
 function repairGeneratedCode(code: string): string {
   let repaired = code;
 
-  // Fix: .s.setOrigin -> .setOrigin (MUST BE FIRST)
-  repaired = repaired.replace(/\.s\.setOrigin/g, '.setOrigin');
+  // Fix: .s.setOrigin -> .setOrigin
+  repaired = repaired.replace(/.s.setOrigin/g, '.setOrigin');
+
+  const afterSsetOrigin = (repaired.match(/\.s\.setOrigin/g) || []).length;
+  console.log('[REPAIR] After .s.setOrigin count:', afterSsetOrigin);
 
   // Fix: font14px' -> fontSize:'14px'
   repaired = repaired.replace(/font14px'/g, "fontSize:'14px'");
@@ -237,13 +240,16 @@ export class GameGeneratorService {
     const gameId = await generateGameId();
     const shortId = nanoid(8);
 
+    // Apply repairs again after compile (compile step may introduce issues)
+    const finalCode = repairGeneratedCode(compiled.code);
+
     const game: GeneratedGame & { ipfsCid?: string; transactionHash?: string } = {
       id: gameId,
       shortId,
       name: completeSpec.name,
       description: completeSpec.description,
       type: finalType,
-      code: compiled.code,
+      code: finalCode,
       playUrl: `https://gamevibe.ai/play/${shortId}`,
       thumbnailUrl: undefined
     };
