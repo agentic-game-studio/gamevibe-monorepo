@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,14 +27,29 @@ export function Header() {
             href="/"
             className="flex items-center gap-2.5 text-lg font-bold group"
           >
-            <div className="relative h-9 w-9 group-hover:scale-105 transition-transform">
-              <Image
-                src="/images/logo.png"
-                alt="GameVibe"
-                fill
-                sizes="36px"
-                className="object-contain"
-              />
+            <div className="relative h-9 w-9 group-hover:scale-105 transition-transform flex-shrink-0">
+              <svg
+                viewBox="0 0 36 36"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-full h-full"
+              >
+                <defs>
+                  <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#ff6b35" />
+                    <stop offset="100%" stopColor="#f7c548" />
+                  </linearGradient>
+                </defs>
+                <circle cx="18" cy="18" r="16" fill="url(#logoGradient)" />
+                <path
+                  d="M12 24V12L18 8L24 12V24L18 28L12 24Z"
+                  fill="#1a1425"
+                  stroke="#1a1425"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                />
+                <circle cx="18" cy="18" r="3" fill="url(#logoGradient)" />
+              </svg>
             </div>
             <span className="gold-accent font-bold">
               GameVibe
