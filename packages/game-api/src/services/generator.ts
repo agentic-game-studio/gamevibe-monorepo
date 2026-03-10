@@ -15,6 +15,9 @@ import { GameGenerationRequest } from '../types.js';
 function repairGeneratedCode(code: string): string {
   let repaired = code;
 
+  // Fix: .s.setOrigin -> .setOrigin (MUST BE FIRST)
+  repaired = repaired.replace(/\.s\.setOrigin/g, '.setOrigin');
+
   // Fix function name truncation: functionObjects -> spawnObjects
   repaired = repaired.replace(/functionObjects\s*\(/g, 'spawnObjects(');
   repaired = repaired.replace(/function\s+functionObjects\s*\(/g, 'function spawnObjects(');
@@ -31,6 +34,8 @@ function repairGeneratedCode(code: string): string {
   repaired = repaired.replace(/fontWe\)/g, "fontWeight:'bold')");
   repaired = repaired.replace(/fontWe:/g, "fontWeight:");
   repaired = repaired.replace(/fontW}/g, "fontWeight:'bold'}");
+  repaired = repaired.replace(/fontWe'/g, "fontWeight:'bold'");
+  repaired = repaired.replace(/fontWe ,/g, "fontWeight:'bold',");
 
   // Fix this.add.text truncation: this.add.tt -> this.add.text
   repaired = repaired.replace(/this\.add\.tt\(/g, 'this.add.text(');
