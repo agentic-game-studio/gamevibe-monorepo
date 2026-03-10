@@ -13,13 +13,15 @@ import { GameGenerationRequest } from '../types.js';
 
 // Repair known AI truncation bugs in generated code
 function repairGeneratedCode(code: string): string {
+  console.log('[REPAIR] Starting repair, input length:', code.length);
   let repaired = code;
 
-  // Fix: .s.setOrigin -> .setOrigin
-  repaired = repaired.replace(/.s.setOrigin/g, '.setOrigin');
-
-  const afterSsetOrigin = (repaired.match(/\.s\.setOrigin/g) || []).length;
-  console.log('[REPAIR] After .s.setOrigin count:', afterSsetOrigin);
+  // Fix: .s.setOrigin -> .setOrigin (escape dots in regex!)
+  const beforeCount = (repaired.match(/\.s\.setOrigin/g) || []).length;
+  console.log('[REPAIR] Before fix - .s.setOrigin count:', beforeCount);
+  repaired = repaired.replace(/\.s\.setOrigin/g, '.setOrigin');
+  const afterCount = (repaired.match(/\.s\.setOrigin/g) || []).length;
+  console.log('[REPAIR] After fix - .s.setOrigin count:', afterCount);
 
   // Fix: font14px' -> fontSize:'14px'
   repaired = repaired.replace(/font14px'/g, "fontSize:'14px'");
@@ -32,6 +34,9 @@ function repairGeneratedCode(code: string): string {
   repaired = repaired.replace(/function\s+functionObjects\s*\(/g, 'function spawnObjects(');
   repaired = repaired.replace(/function\s+spacts\s*\(/g, 'function spawnObjects(');
   repaired = repaired.replace(/function\s+spawnObjcts\s*\(/g, 'function spawnObjects(');
+  // Fix: fu spawnObjects -> function spawnObjects
+  // More aggressive - replace ANY "fu " with "function "
+  repaired = repaired.replace(/fu\s+/g, 'function ');
 
   // Fix variable name truncation: gaState -> gameState
   repaired = repaired.replace(/gaState\./g, 'gameState.');
@@ -94,14 +99,18 @@ function repairGeneratedCode(code: string): string {
 
   // Fix: fontSill -> fontSize (do this first before other font fixes)
   repaired = repaired.replace(/fontSill:/g, 'fontSize:');
+  repaired = repaired.replace(/fontSill'/g, "fontSize:'");
   repaired = repaired.replace(/fontSill/g, 'fontSize');
 
-  // Fix broken fontSize with fill nesting: fontSize:'fill:'#888' -> fontSize:'14px',fill:'#888'
-  // Only if there's no existing fontSize before
-  repaired = repaired.replace(/fontSize:'fill:'#([^']+)'/g, "fontSize:'14px',fill:'#$1'");
+  // Fix: fontSize:'fill:'#888' -> fontSize:'14px',fill:'#888'
+  // The AI writes fontSize:'fill:'#888' instead of fontSize:'14px',fill:'#888'
+  repaired = repaired.replace(/fontSize:'fill:'#/g, "fontSize:'14px',fill:'");
 
   // Fix: {fontSize:'fill:'#888'} -> {fontSize:'14px',fill:'#888'}
-  repaired = repaired.replace(/{fontSize:'fill:'#([^']+)'}/g, "{fontSize:'14px',fill:'#$1'}");
+  repaired = repaired.replace(/{fontSize:'fill:'#/g, "{fontSize:'14px',fill:'");
+
+  // Fix broken fontSize with fill nesting: fontSize:'fill:'#888' -> fontSize:'14px',fill:'#888'
+  repaired = repaired.replace(/fontSize:'fill:'#([^']+)'/g, "fontSize:'14px',fill:'#$1'");
 
   // Remove duplicate fontSize keys: fontSize:'14px',fontSize:'14px' -> fontSize:'14px'
   repaired = repaired.replace(/fontSize:'([^']+)',fontSize:'([^']+)'/g, "fontSize:'$1'");
@@ -112,8 +121,21 @@ function repairGeneratedCode(code: string): string {
   // Fix: .setSc1) -> .setScale(4,1)
   repaired = repaired.replace(/\.setSc1\)/g, '.setScale(4,1)');
 
-  // Fix: etOrigin -> .setOrigin
-  repaired = repaired.replace(/etOrigin/g, '.setOrigin');
+  // Fix: g.destroy();camera shake at end of preload (wrong placement)
+  repaired = repaired.replace(/g\.destroy\(\);this\.cameras\.main\.shake\(\d+,\d+\.\d+\);/g, 'g.destroy();');
+
+  // Fix: = Phaser.Math.Between - missing variable name (truncation bug)
+  repaired = repaired.replace(/=\s*Phaser\.Math\.Between/g, '= Phaser.Math.Between');
+  repaired = repaired.replace(/\n\s*=\s*Phaser\.Math\.Between/g, '\n    var x = Phaser.Math.Between');
+
+  // Fix: collider with extra paren - ); -> });
+  repaired = repaired.replace(/this\.cameras\.main\.shake\(\d+,\d+\.\d+\)\);/g, 'this.cameras.main.shake(30,0.002); });');
+
+  // Fix: onComplete callback with extra camera shake inside
+  repaired = repaired.replace(/onComplete:\(\)\s*=>\s*\{[^}]*p\.destroy\(\);[^}]*this\.cameras\.main\.shake[^}]+\}\s*\}\s*;/g,
+    'onComplete:() => { p.destroy(); }');
+
+  // NOTE: etOrigin fix removed - it was causing .s.setOrigin to reappear!
 
   // Fix: missing closing brace in arrow function - )} -> ) })
   repaired = repaired.replace(/\)\s*}$/g, ') });');
