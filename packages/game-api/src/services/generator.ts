@@ -11,6 +11,76 @@ import { Logger } from '../utils/logger.js';
 import { IPFSService } from './ipfs.js';
 import { GameGenerationRequest } from '../types.js';
 
+// Repair known AI truncation bugs in generated code
+function repairGeneratedCode(code: string): string {
+  let repaired = code;
+
+  // Fix function name truncation: functionObjects -> spawnObjects
+  repaired = repaired.replace(/functionObjects\s*\(/g, 'spawnObjects(');
+  repaired = repaired.replace(/function\s+functionObjects\s*\(/g, 'function spawnObjects(');
+  repaired = repaired.replace(/function\s+spacts\s*\(/g, 'function spawnObjects(');
+  repaired = repaired.replace(/function\s+spawnObjcts\s*\(/g, 'function spawnObjects(');
+
+  // Fix variable name truncation: gaState -> gameState
+  repaired = repaired.replace(/gaState\./g, 'gameState.');
+  repaired = repaired.replace(/gameSta\./g, 'gameState.');
+  repaired = repaired.replace(/gameStat\./g, 'gameState.');
+
+  // Fix fontWeight truncation: fontWe -> fontWeight
+  repaired = repaired.replace(/fontWe\}/g, "fontWeight:'bold'}");
+  repaired = repaired.replace(/fontWe\)/g, "fontWeight:'bold')");
+  repaired = repaired.replace(/fontWe:/g, "fontWeight:");
+  repaired = repaired.replace(/fontW}/g, "fontWeight:'bold'}");
+
+  // Fix this.add.text truncation: this.add.tt -> this.add.text
+  repaired = repaired.replace(/this\.add\.tt\(/g, 'this.add.text(');
+
+  // Fix fill quote nesting: 'fill:'# -> fill: '#
+  repaired = repaired.replace(/'fill:'#([^']+)'/g, "fill:'#$1'");
+
+  // Fix arrow function without braces: ()=>x;y -> ()=>{ x; y; }
+  // Pattern: onComplete:()=>something;somethingElse
+  repaired = repaired.replace(/onComplete:\(\)=>([^;{]+);([^}]+)}/g, (match, first, second) => {
+    return `onComplete:() => { ${first.trim()}; ${second.trim()}; }`;
+  });
+
+  // Fix: onComplete:()=>p.destroy();this.cameras -> onComplete:() => { p.destroy(); this.cameras... }
+  repaired = repaired.replace(/onComplete:\(\)=>(\w+\.destroy\(\));this\.cameras\.main\.shake/g,
+    'onComplete:() => { $1; this.cameras.main.shake');
+
+  // Fix: (b)=>b.destroy();this.cameras -> (b) => { b.destroy(); this.cameras... }
+  repaired = repaired.replace(/\(b\)=>b\.destroy\(\);this\.cameras\.main\.shake/g,
+    '(b) => { b.destroy(); this.cameras.main.shake');
+
+  // Fix: ()=>enemy.destroy();this.cameras -> () => { enemy.destroy(); this.cameras... }
+  repaired = repaired.replace(/\(\)=>enemy\.destroy\(\);this\.cameras\.main\.shake/g,
+    '() => { enemy.destroy(); this.cameras.main.shake');
+
+  // Fix: ()=>p.destroy();this.cameras -> () => { p.destroy(); this.cameras... }
+  repaired = repaired.replace(/\(\)=>p\.destroy\(\);this\.cameras\.main\.shake/g,
+    '() => { p.destroy(); this.cameras.main.shake');
+
+  // Fix double semicolons: ;; -> ;
+  repaired = repaired.replace(/;;/g, ';');
+
+  // Fix double commas: ,, -> ,
+  repaired = repaired.replace(/,,/g, ',');
+
+  // Fix this.add.text(00, -> this.add.text(0,
+  repaired = repaired.replace(/this\.add\.text\(0+0,/g, 'this.add.text(0,');
+
+  // Fix: .refreshBod} -> .refreshBody()}
+  repaired = repaired.replace(/\.refreshBod\}/g, '.refreshBody()}');
+
+  // Fix: pointerdwn -> pointerdown
+  repaired = repaired.replace(/pointerdwn/g, 'pointerdown');
+
+  // Fix: .destroy(); - remove stray semicolon before closing brace
+  repaired = repaired.replace(/\.destroy\(\);(\s*)\}/g, '.destroy();$1}');
+
+  return repaired;
+}
+
 // Detect game type from description using keyword matching
 function detectGameTypeFromDescription(description: string): string {
   const desc = description.toLowerCase();
@@ -118,7 +188,11 @@ export class GameGeneratorService {
     // Get game code from AI service (includes fallback if AI fails)
     const generatedCode = await this.aiService.generateGameCode(completeSpec, template);
 
-    const compiled = await this.engine.compile(generatedCode, {
+    // Repair known AI truncation bugs
+    const repairedCode = repairGeneratedCode(generatedCode);
+    this.logger.info('Repaired AI truncation bugs in generated code');
+
+    const compiled = await this.engine.compile(repairedCode, {
       includePhaserCDN: true,
       metadata: { name: completeSpec.name, description: completeSpec.description }
     });
