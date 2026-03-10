@@ -1124,8 +1124,8 @@ export class AIService {
   private async callAPI(options: GenerateOptions): Promise<AIResponse> {
     const data = await this.fetchWithTimeout('https://api.minimax.io/anthropic/v1/messages', {
       model: options.model || DEFAULT_MODEL,
-      max_tokens: Math.min(options.maxTokens || 4096, 8192),
-      temperature: options.temperature || 0.7,
+      max_tokens: options.maxTokens || 16384,
+      temperature: options.temperature || 1.0,
       messages: [{ role: 'user', content: options.prompt }]
     });
 
