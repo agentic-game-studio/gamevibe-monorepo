@@ -146,6 +146,8 @@ Monorepo with pnpm workspaces:
 - `packages/multiplayer-server` - Colyseus real-time server
 - `packages/showcase-portal` - Next.js public website
 - `packages/shared` - Common types and utilities
+- `packages/game-api` - REST API for game generation
+- `packages/contracts` - Ethereum smart contracts (Solidity)
 
 ## Tech Stack
 
@@ -156,9 +158,10 @@ Monorepo with pnpm workspaces:
 - **Game Engine**: Phaser 3.70
 - **AI/LLM**: MiniMax (primary) - Uses MiniMax-M2.5-Lightning model for cost-effective game generation
 - **Asset Generation**: DALL-E 3, Sharp
-- **Database**: PostgreSQL with Prisma ORM
+- **Blockchain**: Ethereum + Solidity (smart contracts for game ownership)
+- **Storage**: IPFS (Pinata) for game code/assets
+- **Database**: PostgreSQL with Prisma ORM (off-chain data)
 - **Cache**: Redis
-- **Storage**: S3-compatible with CDN
 - **Payments**: Stripe
 - **Multiplayer**: Colyseus 0.16
 - **Deployment**: Docker
@@ -263,9 +266,37 @@ packages/game-engine/src/       # Phaser game templates
 packages/web-runtime/src/      # Discord Activities runtime
 packages/multiplayer-server/    # Colyseus server
 packages/showcase-portal/       # Next.js website
+packages/game-api/              # Game generation REST API
+packages/contracts/             # Ethereum smart contracts
+  src/GameRegistry.sol          # On-chain game registry
 docker-compose.yml              # Full dev environment
 .env                           # Environment variables
 ```
+
+## Blockchain Architecture
+
+### On-Chain (Ethereum)
+- **GameRegistry.sol**: Stores IPFS CIDs of generated games on-chain
+- Game metadata: `ipfsCid`, `creator`, `name`, `gameType`, `createdAt`
+- Events: `GameRegistered`, `GameUpdated` for transparency
+
+### Off-Chain
+- **IPFS (Pinata)**: Actual game code and asset storage
+- **PostgreSQL**: User data, leaderboards, off-chain metadata
+- **Redis**: Caching for fast reads
+
+### Data Flow
+```
+User → AI generates game → Upload to IPFS → Store IPFS CID on-chain
+                                        ↓
+                              Smart Contract emits GameRegistered event
+                                        ↓
+Game retrieved via: IPFS (content) + Contract (metadata/provenance)
+```
+
+### Optional On-Chain Registration
+- Without wallet: game stored off-chain only
+- With `creatorWallet`: game registered on Ethereum for ownership/provenance
 
 ## Environment Variables
 
@@ -285,6 +316,15 @@ REDIS_URL=redis://localhost:6379
 
 # AI Services
 MINIMAX_API_KEY=your_minimax_api_key
+
+# IPFS (Pinata) - for on-chain game storage
+PINATA_API_KEY=your_pinata_api_key
+PINATA_SECRET_KEY=your_pinata_secret_key
+
+# Blockchain (Ethereum)
+ETHEREUM_RPC_URL=https://sepolia.infura.io/v3/your_project_id
+PRIVATE_KEY=your_wallet_private_key
+GAME_REGISTRY_CONTRACT=0x...
 
 # Multiplayer
 MULTIPLAYER_PORT=2567

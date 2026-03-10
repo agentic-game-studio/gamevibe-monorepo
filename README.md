@@ -100,6 +100,31 @@ Assets created → Custom sprites via DALL-E 3
 Game ready! → Playable via Discord Activity or web portal
 ```
 
+## Blockchain & Ownership
+
+GameVibe uses **Ethereum blockchain** for permanent game ownership and provenance:
+
+### How It Works
+
+1. **Game Generated** - AI creates game code + assets
+2. **IPFS Upload** - Game stored on IPFS (decentralized storage)
+3. **On-Chain Registration** - IPFS CID stored on Ethereum via `GameRegistry.sol`
+4. **Ownership** - Creator's wallet address recorded on-chain
+
+### Optional On-Chain Registration
+- **Without wallet**: Games stored off-chain (PostgreSQL + IPFS)
+- **With wallet**: Games registered on Ethereum for verified ownership
+
+### Smart Contract
+```solidity
+// GameRegistry.sol stores:
+- ipfsCid: IPFS content hash (game code)
+- creator: Creator's wallet address
+- name: Game name
+- gameType: Platformer, shooter, puzzle, etc.
+- createdAt: Timestamp
+```
+
 ## Supported Game Types
 
 | Type | Description |
@@ -146,7 +171,8 @@ Game ready! → Playable via Discord Activity or web portal
 │                      │            │                         │
 │                      └─────┬──────┘                         │
 │                            ▼                                │
-│                      PostgreSQL + Redis                      │
+│              IPFS + Ethereum Blockchain                     │
+│              (GameRegistry.sol for ownership)               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -156,7 +182,9 @@ Game ready! → Playable via Discord Activity or web portal
 - **AI**: MiniMax (M2.5-Lightning model)
 - **Game Engine**: Phaser 3.70
 - **Web Framework**: Next.js 14 (Showcase Portal)
-- **Database**: PostgreSQL + Prisma
+- **Blockchain**: Ethereum + Solidity (smart contracts)
+- **Storage**: IPFS (Pinata) for game code/assets
+- **Database**: PostgreSQL + Prisma (off-chain data)
 - **Cache**: Redis
 - **Payments**: Stripe
 - **Multiplayer**: Colyseus
@@ -194,6 +222,15 @@ APP_URL=http://localhost:3000
 
 # Web Runtime (for Discord Activities & web games)
 WEB_RUNTIME_URL=http://localhost:3001
+
+# IPFS (Pinata) - for on-chain game storage
+PINATA_API_KEY=your_pinata_api_key
+PINATA_SECRET_KEY=your_pinata_secret_key
+
+# Blockchain (Ethereum Sepolia)
+ETHEREUM_RPC_URL=https://sepolia.infura.io/v3/your_project_id
+PRIVATE_KEY=your_wallet_private_key
+GAME_REGISTRY_CONTRACT=0x...
 
 # Stripe (for subscriptions)
 STRIPE_SECRET_KEY=sk_test_xxx
