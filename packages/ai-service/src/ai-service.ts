@@ -8,6 +8,7 @@ import {
 } from '@gamevibe/shared';
 import { GamePromptBuilder } from './prompts/index.js';
 import { GamePostProcessor } from './game-post-processor.js';
+import { GameValidator } from './game-validator.js';
 
 export interface AIServiceConfig {
   minimaxApiKey: string;
@@ -996,12 +997,15 @@ export class AIService {
   private cache?: AIServiceConfig['redis'];
   private promptBuilder: GamePromptBuilder;
   private postProcessor: GamePostProcessor;
+  private validator: GameValidator;
+  private maxRetries = 2; // Max continuation attempts
 
   constructor(config: AIServiceConfig) {
     this.minimaxApiKey = config.minimaxApiKey;
     this.cache = config.redis;
     this.promptBuilder = new GamePromptBuilder();
     this.postProcessor = new GamePostProcessor();
+    this.validator = new GameValidator();
     this.queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 3 });
   }
 
@@ -1052,7 +1056,7 @@ export class AIService {
     const description = spec.description || spec.originalDescription || '';
     const useAIBypass = spec.useAI === true || spec.forceAI === true;
     const useOnlyFallback = spec.useFallbackOnly === true;
-    
+
     console.log(`[AI] Request: "${description.slice(0,50)}..."`);
     console.log(`[AI] Options: useAIBypass=${useAIBypass}, useOnlyFallback=${useOnlyFallback}`);
 
@@ -1062,9 +1066,26 @@ export class AIService {
       try {
         const prompt = this.promptBuilder.buildGameGenerationPrompt(spec, template);
         const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 16000 });
+
         if (response.content && response.content.includes('Phaser.Game')) {
-          console.log('[AI] Bypass: Custom game generated!');
-          return this.postProcessor.enhance(response.content);
+          // Validate the generated code
+          let gameCode = response.content;
+          const validation = this.validator.validate(gameCode);
+
+          // If truncated, try to continue the code
+          if (validation.isTruncated || validation.syntaxErrors.length > 0) {
+            console.log(`[AI] Detected truncation: ${validation.truncationReason}, attempting continuation...`);
+            const continuedCode = await this.continueCode(gameCode, validation, 0);
+            if (continuedCode) {
+              gameCode = continuedCode;
+            }
+          }
+
+          // Apply post-processing and return
+          if (gameCode) {
+            console.log('[AI] Bypass: Custom game generated!');
+            return this.postProcessor.enhance(gameCode);
+          }
         }
       } catch (err) {
         console.log('[AI] Bypass failed:', err);
@@ -1087,6 +1108,55 @@ export class AIService {
     }
 
     return fallback;
+  }
+
+  /**
+   * Attempt to continue truncated code by requesting completion from AI
+   */
+  private async continueCode(
+    currentCode: string,
+    validation: { isTruncated: boolean; truncationReason?: string; syntaxErrors: string[] },
+    attempt: number
+  ): Promise<string | null> {
+    if (attempt >= this.maxRetries) {
+      console.log(`[AI] Max continuation attempts (${this.maxRetries}) reached`);
+      return currentCode; // Return what we have, post-processor will try to fix
+    }
+
+    const reason = validation.truncationReason || validation.syntaxErrors[0] || 'unknown truncation';
+    const continuationPrompt = this.validator.getContinuationPrompt(currentCode, reason);
+
+    try {
+      console.log(`[AI] Continuation attempt ${attempt + 1}/${this.maxRetries}...`);
+      const response = await this.generate({
+        prompt: continuationPrompt,
+        model: DEFAULT_MODEL,
+        temperature: 1.0,
+        maxTokens: 8000
+      });
+
+      if (response.content) {
+        // Append the continuation to the original code
+        const continuedCode = currentCode + '\n' + response.content;
+
+        // Validate the continued code
+        const newValidation = this.validator.validate(continuedCode);
+        console.log(`[AI] Continued code validation: valid=${newValidation.isValid}, truncated=${newValidation.isTruncated}`);
+
+        // If still truncated, try again recursively
+        if (newValidation.isTruncated || newValidation.syntaxErrors.length > 0) {
+          return this.continueCode(continuedCode, newValidation, attempt + 1);
+        }
+
+        // Success - code is now valid
+        return continuedCode;
+      }
+    } catch (err) {
+      console.log(`[AI] Continuation failed:`, err);
+    }
+
+    // Return original code if continuation fails
+    return currentCode;
   }
 
   // Background AI enhancement (doesn't block)

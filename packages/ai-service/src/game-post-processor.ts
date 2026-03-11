@@ -73,6 +73,26 @@ export class GamePostProcessor {
     fixed = fixed.replace(/spacts\(\)\s*\{/g, 'spawnObjects() {');
     fixed = fixed.replace(/spawnObjcts\(\)\s*\{/g, 'spawnObjects() {');
 
+    // Fix NEW truncation: platforms -> orms (MiniMax truncates at ~16K tokens)
+    fixed = fixed.replace(/\.orms\.clear/g, '.platforms.clear');
+    fixed = fixed.replace(/\borms\b/g, 'platforms');
+
+    // Fix NEW truncation: gameState -> gaState, gameSta, gameStat
+    fixed = fixed.replace(/\bgaState\./g, 'gameState.');
+    fixed = fixed.replace(/\bgameSta\./g, 'gameState.');
+    fixed = fixed.replace(/\bgameStat\./g, 'gameState.');
+
+    // Fix NEW truncation: platforms array access issues
+    fixed = fixed.replace(/orms\[/g, 'platforms[');
+    fixed = fixed.replace(/orms\./g, 'platforms.');
+
+    // Fix standalone hasInvincibility = true (truncated from if statement)
+    // This pattern appears when AI cuts off mid-condition
+    fixed = fixed.replace(/hasInvincibility\s*=\s*true;(?!\s*if)/g, 'hasInvincibility = true;');
+
+    // Fix incomplete camera shake that was misplaced
+    fixed = fixed.replace(/this\.cameras\.main\.shake\(\s*$/gm, '');
+
     // Fix broken fontSize: fontSize:'fill:' -> fontSize + fill separately (more aggressive)
     fixed = fixed.replace(/fontSize:'fill:'#([0-9a-fA-F]+)'/g, "fontSize:'14px',fill:'#$1'");
     fixed = fixed.replace(/fontSize:'fill:'#([0-9a-fA-F]+)'/gi, "fontSize:'14px',fill:'#$1'");

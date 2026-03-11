@@ -23,3 +23,26 @@
 - **Learnings for future iterations:**
   - Next.js 15 useParams can return null, always check before accessing id
   - Use full params object in dependency array to avoid undefined issues
+
+## 2026-03-10 - AI Game Code Bug Fixes
+- Added NEW truncation patterns to fix AI-generated code bugs:
+  - gameSta. -> gameState., gameStat. -> gameState. (truncated variable names)
+  - spacts() -> spawnObjects(), spawnObjcts() -> spawnObjects() (truncated function names)
+- Updated game-post-processor.ts with fixCommonBugs() method
+- Updated loader.ts in both pre-HTML and post-HTML extraction locations
+- **Learnings for future iterations:**
+  - AI truncates variable/function names at arbitrary lengths (6-8 chars typical)
+  - Add new patterns as they are discovered during game generation
+  - Fixes should be in both post-processor (storage time) and loader (runtime safety net)
+
+## 2026-03-11 - Streaming + Truncation Detection
+- Added GameValidator class to detect truncation in real-time
+- Added continuation logic to request completion when truncation detected
+- Added new truncation patterns: orms -> platforms, hasInvincibility fixes
+- Updated ai-service.ts to validate and retry on truncation
+- **Learnings for future iterations:**
+  - MiniMax truncates at ~16K tokens, causing variable/function name truncation
+  - Detection patterns: trailing commas, unclosed braces, incomplete statements
+  - Use continuation prompts with last 800 chars to complete code
+  - maxRetries = 2 is sufficient to recover most truncated code
+  - Post-processor repairs still needed as safety net for edge cases
