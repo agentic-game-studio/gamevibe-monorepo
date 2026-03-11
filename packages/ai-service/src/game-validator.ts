@@ -31,7 +31,6 @@ export class GameValidator {
     { pattern: /gameState\.\s*$/, reason: 'incomplete gameState access' },
     { pattern: /if\s*\(\s*$/, reason: 'incomplete if statement' },
     { pattern: /for\s*\(\s*$/, reason: 'incomplete for loop' },
-    { pattern: /function\s+\w+\s*\([^)]*\)\s*\{[\s\S]*$/, reason: 'unclosed function' },
   ];
 
   /**
@@ -91,18 +90,19 @@ export class GameValidator {
    * Detect if the code appears to be truncated
    */
   detectTruncation(code: string): { isTruncated: boolean; reason?: string } {
-    if (!code || code.length < 100) {
+    // Very short code is likely truncated or incomplete
+    if (!code || code.length < 30) {
       return { isTruncated: true, reason: 'code too short' };
     }
 
-    // Check known truncation patterns
+    // Check known truncation patterns (these indicate AI was cut off)
     for (const { pattern, reason } of this.TRUNCATION_PATTERNS) {
       if (pattern.test(code)) {
         return { isTruncated: true, reason };
       }
     }
 
-    // Check for unbalanced braces (more than 5 difference is suspicious)
+    // Check for severely unbalanced braces (more than 5 difference is suspicious)
     const braceCheck = this.checkBalancedBraces(code);
     if (Math.abs(braceCheck.openCount - braceCheck.closeCount) > 5) {
       return { isTruncated: true, reason: `severely unbalanced braces (${braceCheck.openCount - braceCheck.closeCount} more opens)` };
