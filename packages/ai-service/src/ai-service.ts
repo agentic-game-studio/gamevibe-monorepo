@@ -1068,6 +1068,7 @@ export class AIService {
         console.log('[AI] Prompt built, calling MiniMax...');
         const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 16000 });
         console.log('[AI] MiniMax response received, content length:', response.content?.length || 0);
+        console.log('[AI] Response preview:', response.content?.substring(0, 100) || 'EMPTY');
 
         if (response.content && response.content.includes('Phaser.Game')) {
           console.log('[AI] Response contains Phaser.Game - using custom AI code');
