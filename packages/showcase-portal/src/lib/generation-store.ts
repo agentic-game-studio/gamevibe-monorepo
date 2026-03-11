@@ -101,7 +101,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
         type: gameType,
         useAI: true,
       }, {
-        timeout: 180000, // 3 minute timeout for game generation
+        timeout: 300000, // 5 minute timeout for complex game generation
       });
 
       const gameData = response.data;

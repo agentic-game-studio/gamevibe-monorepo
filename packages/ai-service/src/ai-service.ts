@@ -19,7 +19,7 @@ export interface AIServiceConfig {
 }
 
 const DEFAULT_MODEL = 'MiniMax-M2.5-Lightning';
-const TIMEOUT_MS = 120000; // 2 minute timeout for complex game generation
+const TIMEOUT_MS = 300000; // 5 minute timeout for complex game generation
 
 // Smart fallback selection based on user description
 function selectBestFallback(description: string): string {

@@ -13,19 +13,22 @@ export class GamePromptBuilder {
 
     return `${EXPERT_SYSTEM_PROMPT}
 
-Create a Phaser.js game based on: "${userDescription}"
+Create a Phaser.js game: "${userDescription}"
 
 Requirements:
-- Use Phaser 3.70 with arcade physics
-- Include player sprite, platforms, collectibles, and enemies
-- Add score, lives, and game over state
-- Use Web Audio API for sound effects (shootSound, explosionSound, powerUpSound)
-- Add camera shake on damage
+- Phaser 3.70 with arcade physics
+- Player sprite with arrow keys, jumping
+- Platforms at different heights
+- Coins/gems with scores, enemies with behaviors
+- Score and lives (3), game over with restart
+- Multiple levels with increasing difficulty
+- Sound: shootSound, explosionSound (Web Audio synth)
+- Camera shake on damage, particles on death
+
+Make it fun and polished! Output raw HTML starting <!DOCTYPE html><html>.
 
 Game type: ${gameType}
-${typeSpecificRequirements}
-
-Output ONLY the raw HTML code starting with <!DOCTYPE html><html> and ending with </html>.`;
+${typeSpecificRequirements}`;
   }
 
   private getCodeExamples(): string {
