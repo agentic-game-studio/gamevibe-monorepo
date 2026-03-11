@@ -124,6 +124,17 @@ function repairGeneratedCode(code: string): string {
   // Fix: g.destroy();camera shake at end of preload (wrong placement)
   repaired = repaired.replace(/g\.destroy\(\);this\.cameras\.main\.shake\(\d+,\d+\.\d+\);/g, 'g.destroy();');
 
+  // Fix: orms.clear - truncated from platforms.clear
+  repaired = repaired.replace(/orms\.clear/g, 'platforms.clear');
+
+  // Fix: standalone hasInvincibility = true; - missing gameState. prefix
+  repaired = repaired.replace(/hasInvincibility\s*=\s*true;/g, 'gameState.hasInvincibility = true;');
+
+  // Fix: onComplete with misplaced camera shake - more aggressive pattern
+  // Pattern: onComplete:() => { p.destroy(); ... this.cameras.main.shake(...) }); => onComplete:() => { p.destroy(); }
+  repaired = repaired.replace(/onComplete:\(\)\s*=>\s*\{[^}]*p\.destroy\(\);[^}]*this\.cameras\.main\.shake[^}]*\}\s*\}\s*;/g,
+    'onComplete:() => { p.destroy(); }');
+
   // Fix: = Phaser.Math.Between - missing variable name (truncation bug)
   repaired = repaired.replace(/=\s*Phaser\.Math\.Between/g, '= Phaser.Math.Between');
   repaired = repaired.replace(/\n\s*=\s*Phaser\.Math\.Between/g, '\n    var x = Phaser.Math.Between');
