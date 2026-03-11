@@ -11,60 +11,19 @@ export class GamePromptBuilder {
 
     const typeSpecificRequirements = this.getTypeSpecificRequirements(gameType, userDescription);
 
-    // Build code examples without backticks to avoid template literal issues
-    const codeExamples = this.getCodeExamples();
-
     return `${EXPERT_SYSTEM_PROMPT}
 
----
+Create a Phaser.js game based on: "${userDescription}"
 
-## User Request
+Requirements:
+- Use Phaser 3.70 with arcade physics
+- Include player sprite, platforms, collectibles, and enemies
+- Add score, lives, and game over state
+- Use Web Audio API for sound effects (shootSound, explosionSound, powerUpSound)
+- Add camera shake on damage
 
-Create a COMPLEX and UNIQUE Phaser.js game based on this description: "${userDescription}"
-
+Game type: ${gameType}
 ${typeSpecificRequirements}
-
----
-
-## CRITICAL REQUIREMENTS (MUST FOLLOW)
-
-### Visual Effects (Particle Systems)
-1. MUST have death explosions with 20+ particles when enemies die
-2. MUST have particle trails on all projectiles (bullets, arrows, etc.)
-3. MUST have player trail particles when moving fast
-4. MUST have power-up glow and pickup sparkle effects
-5. MUST have screen shake on player damage and boss kills
-6. MUST have screen flash on player death
-7. MUST have smooth camera zoom transitions between areas
-
-### Audio (Web Audio API Synthesis - NO external files)
-1. MUST synthesize shooting sound: short sine wave burst with frequency sweep from 800Hz to 200Hz
-2. MUST synthesize hit sound: white noise burst with 100ms decay
-3. MUST synthesize power-up sound: ascending arpeggio (3-4 notes)
-4. MUST synthesize explosion: low-frequency noise with low-pass filter sweep down
-5. MUST synthesize background music: simple 8-bar loop with bass + melody
-6. MUST add reverb to all sounds for depth
-
-### Game Mechanics
-1. MUST have multiple unique enemy types with different behaviors (at least 3 types)
-2. MUST have power-ups or upgrades (at least 3 types: health, speed, weapon upgrade, shield, etc.)
-3. MUST have combo system with multiplier that resets after 3 seconds of no kills
-4. MUST have progressive difficulty (enemies get 10% stronger/faster each wave)
-5. MUST have boss enemies every 5 waves with multiple attack patterns
-
-### UI/UX
-1. MUST have title screen with animated logo, START button, HOW TO PLAY button
-2. MUST have health bar with damage animation (flash red, shake)
-3. MUST have score display with increment animation (numbers roll up)
-4. MUST have wave/level display
-5. MUST have combo counter with scale pulse on increment
-6. MUST have pause functionality (ESC key or pause button)
-
----
-
-${codeExamples}
-
-Now create your game following ALL the patterns above. The game must be COMPLEX, POLISHED, and REPLAYABLE.
 
 Output ONLY the raw HTML code starting with <!DOCTYPE html><html> and ending with </html>.`;
   }

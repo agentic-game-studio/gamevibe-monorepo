@@ -1058,16 +1058,19 @@ export class AIService {
     const useOnlyFallback = spec.useFallbackOnly === true;
 
     console.log(`[AI] Request: "${description.slice(0,50)}..."`);
-    console.log(`[AI] Options: useAIBypass=${useAIBypass}, useOnlyFallback=${useOnlyFallback}`);
+    console.log(`[AI] Options: useAIBypass=${useAIBypass}, useOnlyFallback=${useOnlyFallback}, spec.useAI=${spec.useAI}`);
 
     // OPTION 1: Bypass fallback, use AI only (slow but custom)
     if (useAIBypass) {
       console.log('[AI] BYPASS MODE: Using AI only (may take 1-2 minutes)...');
       try {
         const prompt = this.promptBuilder.buildGameGenerationPrompt(spec, template);
+        console.log('[AI] Prompt built, calling MiniMax...');
         const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 16000 });
+        console.log('[AI] MiniMax response received, content length:', response.content?.length || 0);
 
         if (response.content && response.content.includes('Phaser.Game')) {
+          console.log('[AI] Response contains Phaser.Game - using custom AI code');
           // Validate the generated code (Schema Enforcement)
           let gameCode = response.content;
           let validation = this.validator.validate(gameCode);
@@ -1093,6 +1096,10 @@ export class AIService {
             console.log('[AI] Warning: code still has issues after reflexion, using post-processor');
             return this.postProcessor.enhance(gameCode);
           }
+        } else {
+          // Response doesn't contain Phaser.Game - falling back
+          console.log('[AI] Response does NOT contain Phaser.Game, falling back to template');
+          console.log('[AI] Response preview:', response.content?.substring(0, 200) || 'EMPTY');
         }
       } catch (err) {
         console.log('[AI] Bypass failed:', err);
