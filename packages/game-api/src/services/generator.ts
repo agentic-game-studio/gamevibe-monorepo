@@ -252,7 +252,8 @@ export class GameGeneratorService {
       ...gameSpec,
       type: finalType,
       originalDescription: request.description,
-      playerCount: request.playerCount || gameSpec.playerCount || '1'
+      playerCount: request.playerCount || gameSpec.playerCount || '1',
+      useAI: request.useAI
     };
 
     const template = await this.engine.selectTemplate(completeSpec);

@@ -18,6 +18,7 @@ export interface GameSpec {
   features: string[];
   playerCount: string;
   difficulty?: 'easy' | 'medium' | 'hard';
+  useAI?: boolean;
 }
 
 export interface Game {

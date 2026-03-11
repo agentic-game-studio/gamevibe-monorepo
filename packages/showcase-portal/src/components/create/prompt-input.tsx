@@ -28,8 +28,20 @@ const examplePrompts = [
   { text: 'Endless runner with obstacles and coins', icon: '🏃', category: 'adventure' },
 ];
 
+// Map template names to API game types
+const TEMPLATE_TO_TYPE: Record<string, string> = {
+  'Platformer': 'platformer',
+  'Shooter': 'shooter',
+  'Puzzle': 'puzzle',
+  'RPG': 'rpg',
+  'Racing': 'other',
+  'Tower Defense': 'tower-defense',
+  'Adventure': 'other',
+  'Fighting': 'other',
+};
+
 export function PromptInput() {
-  const { prompt, setPrompt, startGeneration, status } = useGenerationStore();
+  const { prompt, setPrompt, setGameType, startGeneration, status } = useGenerationStore();
   const [focused, setFocused] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -83,14 +95,17 @@ export function PromptInput() {
   const handleTemplateClick = (templateName: string) => {
     if (selectedTemplate === templateName) {
       setSelectedTemplate(null);
+      setGameType('other');
     } else {
       setSelectedTemplate(templateName);
+      setGameType(TEMPLATE_TO_TYPE[templateName] || 'other');
     }
   };
 
   const handleStyleSelect = (templateName: string, styleName: string) => {
     setPrompt(`Create a ${styleName} ${templateName} game`);
     setSelectedTemplate(null);
+    setGameType(TEMPLATE_TO_TYPE[templateName] || 'other');
   };
   const promptLength = prompt.length;
   const isTooShort = promptLength > 0 && promptLength < MIN_PROMPT_LENGTH;

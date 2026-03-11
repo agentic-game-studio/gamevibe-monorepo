@@ -28,6 +28,7 @@ interface GenerationState {
   // State
   status: GenerationStatus;
   prompt: string;
+  gameType: string;
   steps: GenerationStep[];
   generatedGame: GeneratedGame | null;
   error: string | null;
@@ -36,6 +37,7 @@ interface GenerationState {
 
   // Actions
   setPrompt: (prompt: string) => void;
+  setGameType: (gameType: string) => void;
   startGeneration: () => Promise<void>;
   updateStep: (stepId: string, updates: Partial<GenerationStep>) => void;
   setStreamingContent: (content: string) => void;
@@ -54,6 +56,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   // Initial state
   status: 'idle',
   prompt: '',
+  gameType: 'other',
   steps: defaultSteps,
   generatedGame: null,
   error: null,
@@ -62,9 +65,11 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
 
   // Actions
   setPrompt: (prompt) => set({ prompt }),
+  setGameType: (gameType) => set({ gameType }),
 
   startGeneration: async () => {
     const prompt = get().prompt;
+    const gameType = get().gameType;
     if (!prompt.trim()) return;
 
     set({
@@ -93,7 +98,8 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
 
       const response = await axios.post(`${API_URL}/api/games/generate`, {
         description: prompt,
-        type: 'other',
+        type: gameType,
+        useAI: true,
       }, {
         timeout: 180000, // 3 minute timeout for game generation
       });

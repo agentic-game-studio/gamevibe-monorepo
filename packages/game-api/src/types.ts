@@ -5,6 +5,7 @@ export const GameGenerationRequestSchema = z.object({
   type: z.enum(['platformer', 'puzzle', 'rpg', 'shooter', 'endless-runner', 'tower-defense', 'other']).optional(),
   playerCount: z.string().optional(),
   bypassCache: z.boolean().optional(),
+  useAI: z.boolean().optional(),
   creatorWallet: z.string().optional(),
 });
 
