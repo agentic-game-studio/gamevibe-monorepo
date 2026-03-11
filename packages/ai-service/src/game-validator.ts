@@ -3,6 +3,10 @@
  *
  * Provides real-time detection of AI output truncation and validation
  * of generated game code before returning to users.
+ *
+ * Implements Schema Enforcement + Reflexion Loop pattern:
+ * 1. Schema Enforcement: Validates output against required format
+ * 2. Reflexion Loop: Auto-retries on failure with error context
  */
 
 export interface ValidationResult {
@@ -11,6 +15,8 @@ export interface ValidationResult {
   truncationReason?: string;
   syntaxErrors: string[];
   missingFunctions: string[];
+  missingGameElements: string[];
+  hallucinations: string[];
 }
 
 export class GameValidator {
@@ -19,6 +25,24 @@ export class GameValidator {
     'preload',
     'create',
     'update'
+  ];
+
+  // Required game elements for a playable game
+  private readonly REQUIRED_GAME_ELEMENTS = [
+    { pattern: /\bplayer\b/i, name: 'player sprite' },
+    { pattern: /\b(score|scoreText|gameState\.score)\b/i, name: 'score system' },
+    { pattern: /\b(physics|collider|overlap)\b/i, name: 'physics system' },
+    { pattern: /\bplatforms?\b/i, name: 'platforms' },
+  ];
+
+  // Known hallucinated Phaser methods (common AI mistakes)
+  private readonly KNOWN_HALLUCINATIONS = [
+    { pattern: /\.adtext\(/, fix: '.add.text(', reason: 'typo: adtext -> add.text' },
+    { pattern: /\.setSc1\)/, fix: '.setScale(', reason: 'typo: setSc1 -> setScale' },
+    { pattern: /pointerdwn/, fix: 'pointerdown', reason: 'typo: pointerdwn -> pointerdown' },
+    { pattern: /fontSill:/, fix: 'fontSize:', reason: 'typo: fontSill -> fontSize' },
+    { pattern: /fontWe\}/, fix: "fontWeight:'bold'}", reason: 'truncated: fontWe -> fontWeight' },
+    { pattern: /fontWe\)/, fix: "fontWeight:'bold'})", reason: 'truncated: fontWe -> fontWeight' },
   ];
 
   // Known truncation markers that indicate incomplete code
@@ -37,11 +61,14 @@ export class GameValidator {
   ];
 
   /**
-   * Main validation function - checks for truncation and syntax issues
+   * Main validation function - checks for truncation, syntax, and game content
+   * Implements Schema Enforcement: validates output against required format
    */
   validate(code: string): ValidationResult {
     const syntaxErrors: string[] = [];
     const missingFunctions: string[] = [];
+    const missingGameElements: string[] = [];
+    const hallucinations: string[] = [];
 
     // Check for truncation patterns
     const truncationCheck = this.detectTruncation(code);
@@ -51,7 +78,9 @@ export class GameValidator {
         isTruncated: true,
         truncationReason: truncationCheck.reason,
         syntaxErrors,
-        missingFunctions: this.findMissingFunctions(code)
+        missingFunctions: this.findMissingFunctions(code),
+        missingGameElements: this.findMissingGameElements(code),
+        hallucinations: this.detectHallucinations(code)
       };
     }
 
@@ -79,14 +108,58 @@ export class GameValidator {
       missingFunctions.push(...missing);
     }
 
-    const isValid = syntaxErrors.length === 0 && missingFunctions.length === 0;
+    // Check for required game elements (schema enforcement)
+    const missingElements = this.findMissingGameElements(code);
+    if (missingElements.length > 0) {
+      missingGameElements.push(...missingElements);
+    }
+
+    // Check for hallucinations (invalid Phaser APIs)
+    const hallu = this.detectHallucinations(code);
+    if (hallu.length > 0) {
+      hallucinations.push(...hallu);
+    }
+
+    const isValid = syntaxErrors.length === 0 && missingFunctions.length === 0 && missingGameElements.length === 0;
 
     return {
       isValid,
       isTruncated: false,
       syntaxErrors,
-      missingFunctions
+      missingFunctions,
+      missingGameElements,
+      hallucinations
     };
+  }
+
+  /**
+   * Find missing required game elements
+   */
+  private findMissingGameElements(code: string): string[] {
+    const missing: string[] = [];
+
+    for (const { pattern, name } of this.REQUIRED_GAME_ELEMENTS) {
+      if (!pattern.test(code)) {
+        missing.push(name);
+      }
+    }
+
+    return missing;
+  }
+
+  /**
+   * Detect hallucinations (invalid Phaser methods, typos)
+   */
+  private detectHallucinations(code: string): string[] {
+    const found: string[] = [];
+
+    for (const { pattern, reason } of this.KNOWN_HALLUCINATIONS) {
+      if (pattern.test(code)) {
+        found.push(reason);
+      }
+    }
+
+    return found;
   }
 
   /**
@@ -194,6 +267,51 @@ export class GameValidator {
     }
 
     return missing;
+  }
+
+  /**
+   * Get a reflexion prompt for correcting errors
+   * Implements Reflexion Loop: sends error context back to AI for self-correction
+   */
+  getReflexionPrompt(code: string, validation: ValidationResult): string {
+    const lastChars = code.slice(-1000);
+    const issues: string[] = [];
+
+    if (validation.isTruncated && validation.truncationReason) {
+      issues.push(`TRUNCATION: ${validation.truncationReason}`);
+    }
+
+    if (validation.syntaxErrors.length > 0) {
+      issues.push(`SYNTAX ERRORS: ${validation.syntaxErrors.join('; ')}`);
+    }
+
+    if (validation.missingFunctions.length > 0) {
+      issues.push(`MISSING FUNCTIONS: ${validation.missingFunctions.join(', ')}`);
+    }
+
+    if (validation.missingGameElements.length > 0) {
+      issues.push(`MISSING GAME ELEMENTS: ${validation.missingGameElements.join(', ')}`);
+    }
+
+    if (validation.hallucinations.length > 0) {
+      issues.push(`HALLUCINATIONS/typos: ${validation.hallucinations.join('; ')}`);
+    }
+
+    return `Fix the following issues in the game code:
+
+ISSUES DETECTED:
+${issues.map(i => `- ${i}`).join('\n')}
+
+The last part of the code:
+${lastChars}
+
+Please fix these issues and provide the corrected code. Ensure:
+1. All functions (preload, create, update) are complete
+2. Game has player sprite, platforms, and score system
+3. All braces, parentheses, and quotes are balanced
+4. Fix any typos in Phaser API calls
+
+Return ONLY the corrected code, not the full game.`;
   }
 
   /**

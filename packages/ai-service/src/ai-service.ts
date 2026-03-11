@@ -1068,22 +1068,29 @@ export class AIService {
         const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 16000 });
 
         if (response.content && response.content.includes('Phaser.Game')) {
-          // Validate the generated code
+          // Validate the generated code (Schema Enforcement)
           let gameCode = response.content;
-          const validation = this.validator.validate(gameCode);
+          let validation = this.validator.validate(gameCode);
 
-          // If truncated, try to continue the code
-          if (validation.isTruncated || validation.syntaxErrors.length > 0) {
-            console.log(`[AI] Detected truncation: ${validation.truncationReason}, attempting continuation...`);
-            const continuedCode = await this.continueCode(gameCode, validation, 0);
-            if (continuedCode) {
-              gameCode = continuedCode;
+          // If validation fails, try to fix via reflexion loop
+          if (!validation.isValid) {
+            console.log(`[AI] Validation failed: ${validation.isTruncated ? validation.truncationReason : validation.syntaxErrors.join('; ')}`);
+            console.log(`[AI] Attempting reflexion loop (self-correction)...`);
+            const fixedCode = await this.fixWithReflexion(gameCode, validation, 0);
+            if (fixedCode) {
+              gameCode = fixedCode;
+              validation = this.validator.validate(gameCode);
+              console.log(`[AI] After reflexion: valid=${validation.isValid}`);
             }
           }
 
           // Apply post-processing and return
-          if (gameCode) {
+          if (gameCode && validation.isValid) {
             console.log('[AI] Bypass: Custom game generated!');
+            return this.postProcessor.enhance(gameCode);
+          } else if (gameCode) {
+            // If still invalid after reflexion, still try post-processor as safety net
+            console.log('[AI] Warning: code still has issues after reflexion, using post-processor');
             return this.postProcessor.enhance(gameCode);
           }
         }
@@ -1156,6 +1163,58 @@ export class AIService {
     }
 
     // Return original code if continuation fails
+    return currentCode;
+  }
+
+  /**
+   * Fix code issues using reflexion loop
+   * Implements: Schema Enforcement + Reflexion pattern
+   * - Validates output against required format
+   * - If invalid, sends error context back to AI for self-correction
+   */
+  private async fixWithReflexion(
+    currentCode: string,
+    validation: { isTruncated: boolean; truncationReason?: string; syntaxErrors: string[]; missingFunctions: string[]; missingGameElements: string[]; hallucinations: string[] },
+    attempt: number
+  ): Promise<string | null> {
+    if (attempt >= this.maxRetries) {
+      console.log(`[AI] Max reflexion attempts (${this.maxRetries}) reached`);
+      return currentCode;
+    }
+
+    // Use reflexion prompt that includes all validation errors
+    const reflexionPrompt = this.validator.getReflexionPrompt(currentCode, validation as any);
+
+    try {
+      console.log(`[AI] Reflexion attempt ${attempt + 1}/${this.maxRetries}...`);
+      const response = await this.generate({
+        prompt: reflexionPrompt,
+        model: DEFAULT_MODEL,
+        temperature: 1.0,
+        maxTokens: 12000
+      });
+
+      if (response.content) {
+        // The reflexion should return the fixed code
+        const fixedCode = response.content;
+
+        // Validate the fixed code
+        const newValidation = this.validator.validate(fixedCode);
+        console.log(`[AI] Reflexion result: valid=${newValidation.isValid}, truncated=${newValidation.isTruncated}`);
+
+        if (newValidation.isValid) {
+          return fixedCode;
+        }
+
+        // If still invalid, try again
+        if (attempt < this.maxRetries - 1) {
+          return this.fixWithReflexion(fixedCode, newValidation, attempt + 1);
+        }
+      }
+    } catch (err) {
+      console.log(`[AI] Reflexion failed:`, err);
+    }
+
     return currentCode;
   }
 
