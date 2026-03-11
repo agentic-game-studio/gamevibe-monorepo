@@ -127,6 +127,9 @@ function repairGeneratedCode(code: string): string {
   // Fix: orms.clear - truncated from platforms.clear
   repaired = repaired.replace(/orms\.clear/g, 'platforms.clear');
 
+  // Fix: platfplatfplatforms - duplicate platform prefix
+  repaired = repaired.replace(/platfplatf(platforms?)/g, '$1');
+
   // Fix: standalone hasInvincibility = true; - missing gameState. prefix
   repaired = repaired.replace(/hasInvincibility\s*=\s*true;/g, 'gameState.hasInvincibility = true;');
 

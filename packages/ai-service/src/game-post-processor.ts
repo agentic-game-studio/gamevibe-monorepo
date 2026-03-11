@@ -116,6 +116,9 @@ export class GamePostProcessor {
     // Fix truncated gameState: gaState -> gameState (more aggressive)
     fixed = fixed.replace(/gaState\./g, 'gameState.');
 
+    // Fix duplicate platform prefixes: platfplatfplatforms -> platforms
+    fixed = fixed.replace(/platfplatf(platforms?)/g, '$1');
+
     return fixed;
   }
 
