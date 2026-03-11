@@ -31,6 +31,9 @@ export class GameValidator {
     { pattern: /gameState\.\s*$/, reason: 'incomplete gameState access' },
     { pattern: /if\s*\(\s*$/, reason: 'incomplete if statement' },
     { pattern: /for\s*\(\s*$/, reason: 'incomplete for loop' },
+    // Incomplete function calls like Phaser.Math.Between(5;
+    { pattern: /\w+\.\w+\([^)]*;$/, reason: 'incomplete function call (missing closing paren)' },
+    { pattern: /\w+\([^)]*;$/, reason: 'incomplete function call (missing closing paren)' },
   ];
 
   /**

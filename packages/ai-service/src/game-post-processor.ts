@@ -104,6 +104,9 @@ export class GamePostProcessor {
     // Fix truncated text: this.add.tt( -> this.add.text(
     fixed = fixed.replace(/this\.add\.tt\(/g, 'this.add.text(');
 
+    // Fix typo: this.adtext -> this.add.text
+    fixed = fixed.replace(/this\.adtext\(/g, 'this.add.text(');
+
     // Fix truncated refreshBody: .refre() -> .refreshBody()
     fixed = fixed.replace(/\.refre\(\)/g, '.refreshBody()');
 
