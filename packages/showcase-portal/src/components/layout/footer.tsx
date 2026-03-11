@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { FiGithub, FiTwitter, FiMail, FiExternalLink, FiZap, FiUsers, FiBook, FiMap, FiCreditCard, FiFileText, FiHelpCircle } from 'react-icons/fi';
 import { FaDiscord, FaGamepad } from 'react-icons/fa';
 
@@ -40,14 +39,29 @@ export function Footer() {
           {/* Brand Column */}
           <div className="col-span-2 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="relative h-9 w-9 group-hover:scale-105 transition-transform">
-                <Image
-                  src="/images/logo.png"
-                  alt="GameVibe"
-                  fill
-                  sizes="36px"
-                  className="object-contain"
-                />
+              <div className="relative h-9 w-9 group-hover:scale-105 transition-transform flex-shrink-0">
+                <svg
+                  viewBox="0 0 36 36"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-full h-full"
+                >
+                  <defs>
+                    <linearGradient id="logoGradientFooter" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#ff6b35" />
+                      <stop offset="100%" stopColor="#f7c548" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="18" cy="18" r="16" fill="url(#logoGradientFooter)" />
+                  <path
+                    d="M12 24V12L18 8L24 12V24L18 28L12 24Z"
+                    fill="#1a1425"
+                    stroke="#1a1425"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx="18" cy="18" r="3" fill="url(#logoGradientFooter)" />
+                </svg>
               </div>
               <span className="text-lg font-bold gold-accent">
                 GameVibe
