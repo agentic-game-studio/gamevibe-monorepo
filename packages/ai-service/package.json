@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@gamevibe/shared": "workspace:*",
-    "p-queue": "^8.1.0"
+    "p-queue": "^9.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
