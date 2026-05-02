@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@colyseus/core": "0.16.19",
-    "@colyseus/schema": "^3.0.0",
+    "@colyseus/schema": "^4.0.21",
     "@colyseus/ws-transport": "0.16.5",
     "@gamevibe/shared": "workspace:*",
     "cors": "^2.8.5",
