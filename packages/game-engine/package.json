@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@gamevibe/shared": "workspace:*",
-    "handlebars": "^4.7.0"
+    "handlebars": "^4.7.9"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
