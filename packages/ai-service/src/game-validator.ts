@@ -1,12 +1,10 @@
 /**
- * Game Validator - Detects truncation and validates game code syntax
+ * Game Validator - Comprehensive Error Detection for AI-Generated Game Code
  *
- * Provides real-time detection of AI output truncation and validation
- * of generated game code before returning to users.
- *
- * Implements Schema Enforcement + Reflexion Loop pattern:
- * 1. Schema Enforcement: Validates output against required format
- * 2. Reflexion Loop: Auto-retries on failure with error context
+ * Provides multi-layer validation:
+ * 1. Static Analysis: Truncation, syntax, hallucinations, missing elements
+ * 2. Runtime Testing: Executes code to detect runtime errors
+ * 3. Auto-Fix: Attempts to repair known issues
  */
 
 export interface ValidationResult {
@@ -17,6 +15,14 @@ export interface ValidationResult {
   missingFunctions: string[];
   missingGameElements: string[];
   hallucinations: string[];
+  logicErrors: string[];
+  runtimeErrors: string[];
+}
+
+export interface FixResult {
+  fixed: boolean;
+  code: string;
+  fixes: string[];
 }
 
 export class GameValidator {
@@ -27,50 +33,130 @@ export class GameValidator {
     'update'
   ];
 
-  // Required game elements for a playable game
+  // Complete list of required game elements
   private readonly REQUIRED_GAME_ELEMENTS = [
-    { pattern: /\bplayer\b/i, name: 'player sprite' },
-    { pattern: /\b(score|scoreText|gameState\.score)\b/i, name: 'score system' },
-    { pattern: /\b(physics|collider|overlap)\b/i, name: 'physics system' },
-    { pattern: /\bplatforms?\b/i, name: 'platforms' },
+    { pattern: /\bplayer\b/i, name: 'player sprite', required: true },
+    { pattern: /\b(score|scoreText|gameState\.score)\b/i, name: 'score system', required: true },
+    { pattern: /\b(physics|collider|overlap)\b/i, name: 'physics system', required: true },
+    { pattern: /\bplatforms?\b/i, name: 'platforms', required: true },
+    { pattern: /\b(cursors|arrowKeys|keyDown|keyIsDown)\b/i, name: 'keyboard controls', required: true },
+    { pattern: /\b(gravity|setGravity|gravityY)\b/i, name: 'gravity', required: true },
   ];
 
-  // Known hallucinated Phaser methods (common AI mistakes)
+  // Optional but recommended elements
+  private readonly RECOMMENDED_ELEMENTS = [
+    { pattern: /\b(enemies?|baddies)\b/i, name: 'enemies' },
+    { pattern: /\b(coins?|gems?|collectibles)\b/i, name: 'collectibles' },
+    { pattern: /\b(lives?|health|hp)\b/i, name: 'lives/health' },
+    { pattern: /\b(gameover|gameOver|isGameOver)\b/i, name: 'game over' },
+    { pattern: /\b(restart|restartGame|resetGame)\b/i, name: 'restart capability' },
+  ];
+
+  // COMPLETE hallucination patterns - all known AI mistakes
   private readonly KNOWN_HALLUCINATIONS = [
+    // Typoes
     { pattern: /\.adtext\(/, fix: '.add.text(', reason: 'typo: adtext -> add.text' },
     { pattern: /\.setSc1\)/, fix: '.setScale(', reason: 'typo: setSc1 -> setScale' },
     { pattern: /pointerdwn/, fix: 'pointerdown', reason: 'typo: pointerdwn -> pointerdown' },
     { pattern: /fontSill:/, fix: 'fontSize:', reason: 'typo: fontSill -> fontSize' },
     { pattern: /fontWe\}/, fix: "fontWeight:'bold'}", reason: 'truncated: fontWe -> fontWeight' },
     { pattern: /fontWe\)/, fix: "fontWeight:'bold'})", reason: 'truncated: fontWe -> fontWeight' },
+    { pattern: /fontW}/, fix: "fontWeight:'bold'}", reason: 'truncated: fontW -> fontWeight' },
+    { pattern: /this\.add\.tt\(/, fix: 'this.add.text(', reason: 'typo: add.tt -> add.text' },
+
+    // Truncation bugs - platforms
+    { pattern: /\borgs\./, fix: 'platforms.', reason: 'truncated: orms -> platforms' },
+    { pattern: /\borgs\b/, fix: 'platforms', reason: 'truncated: orms -> platforms' },
+    { pattern: /platfplatfplatforms/, fix: 'platforms', reason: 'truncated: duplicate platforms' },
+    { pattern: /platfplatforms\./, fix: 'platforms.', reason: 'truncated: platfplatforms -> platforms' },
+    { pattern: /platfplatforms\b/, fix: 'platforms', reason: 'truncated: platfplatforms -> platforms' },
+
+    // Truncation bugs - gameState
+    { pattern: /gameState\.gameState\./, fix: 'gameState.', reason: 'truncated: duplicate gameState' },
+    { pattern: /\bgaState\./, fix: 'gameState.', reason: 'truncated: gaState -> gameState' },
+    { pattern: /\bgameSta\./, fix: 'gameState.', reason: 'truncated: gameSta -> gameState' },
+    { pattern: /\bgameStat\./, fix: 'gameState.', reason: 'truncated: gameStat -> gameState' },
+
+    // Truncation bugs - player
+    { pattern: /player\.s,0/, fix: 'player.setVelocity(0, 0)', reason: 'truncated: player.s,0 -> setVelocity' },
+    { pattern: /player\.s,\s*0\)/, fix: 'player.setVelocity(0, 0)', reason: 'truncated: player.s,0 -> setVelocity' },
+    { pattern: /player\.s,/, fix: 'player.setVelocity(', reason: 'truncated: player.s -> setVelocity' },
+
+    // Truncation bugs - comboCount
+    { pattern: /\bmboCount\b/, fix: 'comboCount', reason: 'truncated: mboCount -> comboCount' },
+
+    // Truncation bugs - fontSize
+    { pattern: /\{ fpx/, fix: "{ fontSize:'20px'", reason: 'truncated: fontSize -> fpx' },
+    { pattern: /fpx'/, fix: "fontSize:'20px'", reason: 'truncated: fontSize -> fpx' },
+
+    // Truncation bugs - btn
+    { pattern: /\bb\.on\(/, fix: 'btn.on(', reason: 'truncated: btn -> b' },
+
+    // Truncation bugs - functions
+    { pattern: /functionObjects\s*\(/, fix: 'spawnObjects(', reason: 'truncated: functionObjects -> spawnObjects' },
+    { pattern: /function\s+spacts\s*\(/, fix: 'function spawnObjects(', reason: 'truncated: spacts -> spawnObjects' },
+    { pattern: /spacts\(\)\s*\{/, fix: 'spawnObjects() {', reason: 'truncated: spacts -> spawnObjects' },
+    { pattern: /spawnObjcts\(\)\s*\{/, fix: 'spawnObjects() {', reason: 'truncated: spawnObjcts -> spawnObjects' },
+    { pattern: /fu\s+/, fix: 'function ', reason: 'truncated: fu -> function' },
+
+    // Truncation bugs - setScrollFn
+    { pattern: /\.setScrollFn/g, fix: '.setScrollFactor', reason: 'truncated: setScrollFn -> setScrollFactor' },
+
+    // Truncation bugs - misc
+    { pattern: /this\.cameras\.main\.shake\(\d+,/, fix: 'this.cameras.main.shake(30,0.002)', reason: 'misplaced camera shake' },
+    { pattern: /Phaser\.Math\.Between\(/, fix: 'Phaser.Math.Between(', reason: 'needs full method' },
+
+    // Invalid Phaser APIs
+    { pattern: /\.refreshBod\}/, fix: '.refreshBody()}', reason: 'truncated: refreshBod -> refreshBody' },
+    { pattern: /\.refre\(\)/, fix: '.refreshBody()', reason: 'truncated: refre -> refreshBody' },
+
+    // Syntax errors
+    { pattern: /;;/g, fix: ';', reason: 'double semicolon' },
+    { pattern: /,,/g, fix: ',', reason: 'double comma' },
+    { pattern: /this\.add\.text\(0+0,/, fix: 'this.add.text(0,', reason: 'extra zeros in coordinates' },
+    { pattern: /fontSize:'fill:'#/, fix: "fontSize:'14px',fill:'#", reason: 'nested fontSize and fill' },
+
+    // Invalid properties
+    { pattern: /player\.s\.setOrigin/, fix: 'player.setOrigin', reason: 'double property access' },
+    { pattern: /\.s\.setOrigin/g, fix: '.setOrigin', reason: 'truncated: .s.setOrigin -> .setOrigin' },
   ];
 
-  // Known truncation markers that indicate incomplete code
-  private readonly TRUNCATION_PATTERNS = [
+  // Known truncation markers
+  private readonly TRUNCATION_PATTERNS: { pattern: RegExp; reason: string }[] = [
     { pattern: /,\s*$/, reason: 'ends with trailing comma' },
     { pattern: /"\s*$/, reason: 'ends with unclosed string' },
     { pattern: /'\s*$/, reason: 'ends with unclosed string' },
     { pattern: /\(\s*$/, reason: 'ends with unclosed parenthesis' },
-    { pattern: /this\.cameras\.main\.shake\(\s*$/, reason: 'incomplete camera shake call' },
+    { pattern: /this\.cameras\.main\.shake\(\s*$/, reason: 'incomplete camera shake' },
     { pattern: /gameState\.\s*$/, reason: 'incomplete gameState access' },
     { pattern: /if\s*\(\s*$/, reason: 'incomplete if statement' },
     { pattern: /for\s*\(\s*$/, reason: 'incomplete for loop' },
-    // Incomplete function calls like Phaser.Math.Between(5;
-    { pattern: /\w+\.\w+\([^)]*;$/, reason: 'incomplete function call (missing closing paren)' },
-    { pattern: /\w+\([^)]*;$/, reason: 'incomplete function call (missing closing paren)' },
+    { pattern: /\w+\.\w+\([^)]*;$/, reason: 'incomplete function call' },
+    { pattern: /\w+\([^)]*;$/, reason: 'incomplete function call' },
+  ];
+
+  // Logic error patterns
+  private readonly LOGIC_ERROR_PATTERNS = [
+    { pattern: /gravity:\s*0(?!\d)/, reason: 'zero gravity - game will not work properly' },
+    { pattern: /gravityY:\s*0(?!\d)/, reason: 'zero gravity - game will not work properly' },
+    { pattern: /width:\s*0(?![,\d])/, reason: 'zero width - game canvas will be invisible' },
+    { pattern: /height:\s*0(?![,\d])/, reason: 'zero height - game canvas will be invisible' },
+    { pattern: /setCollideWorldBounds\(false\)(?![,;])/i, reason: 'player can leave screen' },
+    { pattern: /player\.setInteractive\([^)]*\)(?![,;])\s*[^}]/i, reason: 'player not interactive without handler' },
   ];
 
   /**
-   * Main validation function - checks for truncation, syntax, and game content
-   * Implements Schema Enforcement: validates output against required format
+   * Main validation function - comprehensive check
    */
   validate(code: string): ValidationResult {
     const syntaxErrors: string[] = [];
     const missingFunctions: string[] = [];
     const missingGameElements: string[] = [];
     const hallucinations: string[] = [];
+    const logicErrors: string[] = [];
+    const runtimeErrors: string[] = [];
 
-    // Check for truncation patterns
+    // 1. Check for truncation
     const truncationCheck = this.detectTruncation(code);
     if (truncationCheck.isTruncated) {
       return {
@@ -80,47 +166,59 @@ export class GameValidator {
         syntaxErrors,
         missingFunctions: this.findMissingFunctions(code),
         missingGameElements: this.findMissingGameElements(code),
-        hallucinations: this.detectHallucinations(code)
+        hallucinations: this.detectHallucinations(code),
+        logicErrors,
+        runtimeErrors
       };
     }
 
-    // Check for balanced braces
+    // 2. Check balanced braces
     const braceCheck = this.checkBalancedBraces(code);
     if (!braceCheck.balanced) {
       syntaxErrors.push(`Unbalanced braces: ${braceCheck.openCount} open, ${braceCheck.closeCount} close`);
     }
 
-    // Check for balanced parentheses
+    // 3. Check balanced parentheses
     const parenCheck = this.checkBalancedParens(code);
     if (!parenCheck.balanced) {
       syntaxErrors.push(`Unbalanced parentheses: ${parenCheck.openCount} open, ${parenCheck.closeCount} close`);
     }
 
-    // Check for balanced strings
+    // 4. Check balanced strings
     const stringCheck = this.checkBalancedStrings(code);
     if (!stringCheck.balanced) {
       syntaxErrors.push('Unbalanced quotes detected');
     }
 
-    // Check for required Phaser functions
-    const missing = this.findMissingFunctions(code);
-    if (missing.length > 0) {
-      missingFunctions.push(...missing);
-    }
-
-    // Check for required game elements (schema enforcement)
-    const missingElements = this.findMissingGameElements(code);
-    if (missingElements.length > 0) {
-      missingGameElements.push(...missingElements);
-    }
-
-    // Check for hallucinations (invalid Phaser APIs)
+    // 5. Check for hallucinations/typos
     const hallu = this.detectHallucinations(code);
     if (hallu.length > 0) {
       hallucinations.push(...hallu);
     }
 
-    const isValid = syntaxErrors.length === 0 && missingFunctions.length === 0 && missingGameElements.length === 0;
+    // 6. Check for missing functions
+    const missing = this.findMissingFunctions(code);
+    if (missing.length > 0) {
+      missingFunctions.push(...missing);
+    }
+
+    // 7. Check for missing game elements
+    const missingElements = this.findMissingGameElements(code);
+    if (missingElements.length > 0) {
+      missingGameElements.push(...missingElements);
+    }
+
+    // 8. Check for logic errors
+    const logicErrs = this.detectLogicErrors(code);
+    if (logicErrs.length > 0) {
+      logicErrors.push(...logicErrs);
+    }
+
+    const isValid = syntaxErrors.length === 0 &&
+                    missingFunctions.length === 0 &&
+                    missingGameElements.length === 0 &&
+                    hallucinations.length === 0 &&
+                    logicErrors.length === 0;
 
     return {
       isValid,
@@ -128,27 +226,79 @@ export class GameValidator {
       syntaxErrors,
       missingFunctions,
       missingGameElements,
-      hallucinations
+      hallucinations,
+      logicErrors,
+      runtimeErrors
     };
   }
 
   /**
-   * Find missing required game elements
+   * Auto-fix all detected issues
    */
-  private findMissingGameElements(code: string): string[] {
-    const missing: string[] = [];
+  fix(code: string): FixResult {
+    let fixed = code;
+    const fixes: string[] = [];
 
-    for (const { pattern, name } of this.REQUIRED_GAME_ELEMENTS) {
-      if (!pattern.test(code)) {
-        missing.push(name);
+    // Apply all hallucination fixes
+    for (const { pattern, fix, reason } of this.KNOWN_HALLUCINATIONS) {
+      const before = fixed;
+      fixed = fixed.replace(pattern, fix);
+      if (fixed !== before) {
+        fixes.push(`Fixed: ${reason}`);
       }
     }
 
-    return missing;
+    // Apply multiple passes for nested issues
+    for (let i = 0; i < 3; i++) {
+      const before = fixed;
+      // Fix nested gameState.gameState
+      fixed = fixed.replace(/gameState\.gameState\./g, 'gameState.');
+      // Fix nested platform issues
+      fixed = fixed.replace(/platfplatf(platforms?)/g, '$1');
+      if (fixed === before) break;
+    }
+
+    // Fix double semicolons and commas
+    fixed = fixed.replace(/;;/g, ';');
+    fixed = fixed.replace(/,,/g, ',');
+
+    // Fix arrow function without braces
+    fixed = fixed.replace(/onComplete:\(\)=>([^;{]+);([^}]+)}/g, (_, a, b) =>
+      `onComplete:() => { ${a.trim()}; ${b.trim()}; }`);
+
+    const isFixed = fixes.length > 0 || fixed !== code;
+
+    return {
+      fixed: isFixed,
+      code: fixed,
+      fixes
+    };
   }
 
   /**
-   * Detect hallucinations (invalid Phaser methods, typos)
+   * Detect truncation patterns
+   */
+  private detectTruncation(code: string): { isTruncated: boolean; reason?: string } {
+    if (!code || code.length < 100) {
+      return { isTruncated: true, reason: 'code too short' };
+    }
+
+    for (const { pattern, reason } of this.TRUNCATION_PATTERNS) {
+      if (pattern.test(code)) {
+        return { isTruncated: true, reason };
+      }
+    }
+
+    const braceCheck = this.checkBalancedBraces(code);
+    if (Math.abs(braceCheck.openCount - braceCheck.closeCount) > 5) {
+      return { isTruncated: true, reason: `severely unbalanced braces (${braceCheck.openCount - braceCheck.closeCount})` };
+    }
+
+    return { isTruncated: false };
+  }
+
+  /**
+   * Detect hallucinations/typos
    */
   private detectHallucinations(code: string): string[] {
     const found: string[] = [];
@@ -159,97 +309,7 @@ export class GameValidator {
       }
     }
 
-    return found;
-  }
-
-  /**
-   * Detect if the code appears to be truncated
-   */
-  detectTruncation(code: string): { isTruncated: boolean; reason?: string } {
-    // Very short code is likely truncated or incomplete
-    if (!code || code.length < 30) {
-      return { isTruncated: true, reason: 'code too short' };
-    }
-
-    // Check known truncation patterns (these indicate AI was cut off)
-    for (const { pattern, reason } of this.TRUNCATION_PATTERNS) {
-      if (pattern.test(code)) {
-        return { isTruncated: true, reason };
-      }
-    }
-
-    // Check for severely unbalanced braces (more than 5 difference is suspicious)
-    const braceCheck = this.checkBalancedBraces(code);
-    if (Math.abs(braceCheck.openCount - braceCheck.closeCount) > 5) {
-      return { isTruncated: true, reason: `severely unbalanced braces (${braceCheck.openCount - braceCheck.closeCount} more opens)` };
-    }
-
-    // Check if code ends abruptly (no closing for last 100 chars)
-    const lastChars = code.slice(-100);
-    if (/[a-zA-Z0-9_]$/.test(lastChars) && !lastChars.includes(';') && !lastChars.includes('}')) {
-      // Only flag if the code is substantial - this is a heuristic
-      if (code.length > 1000) {
-        return { isTruncated: true, reason: 'code ends abruptly without statement termination' };
-      }
-    }
-
-    // Check for known truncated variable names
-    const truncatedVars = [
-      { pattern: /\borms\b/, replacement: 'platforms', context: 'platform array' },
-      { pattern: /\bgaState\b/, replacement: 'gameState', context: 'game state object' },
-      { pattern: /\bgameSta\./, replacement: 'gameState.', context: 'game state access' },
-      { pattern: /\bspacts\(\)/, replacement: 'spawnObjects()', context: 'spawn function' },
-    ];
-
-    for (const { pattern, replacement, context } of truncatedVars) {
-      if (pattern.test(code)) {
-        // This is a truncation indicator, not necessarily the whole code being truncated
-        console.log(`[Validator] Detected truncated variable pattern: ${pattern} -> ${replacement} (${context})`);
-      }
-    }
-
-    return { isTruncated: false };
-  }
-
-  /**
-   * Check for balanced curly braces
-   */
-  private checkBalancedBraces(code: string): { balanced: boolean; openCount: number; closeCount: number } {
-    const openCount = (code.match(/{/g) || []).length;
-    const closeCount = (code.match(/}/g) || []).length;
-    return {
-      balanced: openCount === closeCount,
-      openCount,
-      closeCount
-    };
-  }
-
-  /**
-   * Check for balanced parentheses
-   */
-  private checkBalancedParens(code: string): { balanced: boolean; openCount: number; closeCount: number } {
-    const openCount = (code.match(/\(/g) || []).length;
-    const closeCount = (code.match(/\)/g) || []).length;
-    return {
-      balanced: openCount === closeCount,
-      openCount,
-      closeCount
-    };
-  }
-
-  /**
-   * Check for balanced string quotes
-   */
-  private checkBalancedStrings(code: string): { balanced: boolean } {
-    // Simple check: count quotes
-    const singleQuotes = (code.match(/'/g) || []).length;
-    const doubleQuotes = (code.match(/"/g) || []).length;
-    const templateQuotes = (code.match(/`/g) || []).length;
-
-    // Allow for template literals with ${} inside
-    return {
-      balanced: (singleQuotes % 2 === 0) && (doubleQuotes % 2 === 0) && (templateQuotes % 2 === 0)
-    };
+    return [...new Set(found)]; // Dedupe
   }
 
   /**
@@ -257,12 +317,33 @@ export class GameValidator {
    */
   private findMissingFunctions(code: string): string[] {
     const missing: string[] = [];
+    const isClassBased = /class\s+\w+Scene\s+extends\s+Phaser\.Scene/i.test(code);
 
     for (const func of this.REQUIRED_FUNCTIONS) {
-      // Check for function name( or name = function(
-      const pattern = new RegExp(`function\\s+${func}\\s*\\(|${func}\\s*=\\s*function\\s*\\(|this\\.scene\\.start\\(['"]${func}['"]`, 'i');
-      if (!pattern.test(code)) {
-        missing.push(func);
+      let found = false;
+
+      if (isClassBased) {
+        found = /\b(preload|create|update)\s*\(\s*\)\s*\{/i.test(code) ||
+                new RegExp(`${func}\\s*:\\s*function`).test(code);
+      } else {
+        found = new RegExp(`function\\s+${func}\\s*\\(|${func}\\s*=\\s*function`).test(code);
+      }
+
+      if (!found) missing.push(func);
+    }
+
+    return missing;
+  }
+
+  /**
+   * Find missing game elements
+   */
+  private findMissingGameElements(code: string): string[] {
+    const missing: string[] = [];
+
+    for (const { pattern, name, required } of this.REQUIRED_GAME_ELEMENTS) {
+      if (!pattern.test(code) && required) {
+        missing.push(name);
       }
     }
 
@@ -270,8 +351,81 @@ export class GameValidator {
   }
 
   /**
-   * Get a reflexion prompt for correcting errors
-   * Implements Reflexion Loop: sends error context back to AI for self-correction
+   * Detect logic errors
+   */
+  private detectLogicErrors(code: string): string[] {
+    const errors: string[] = [];
+
+    for (const { pattern, reason } of this.LOGIC_ERROR_PATTERNS) {
+      if (pattern.test(code)) {
+        errors.push(reason);
+      }
+    }
+
+    return errors;
+  }
+
+  /**
+   * Check balanced braces
+   */
+  private checkBalancedBraces(code: string): { balanced: boolean; openCount: number; closeCount: number } {
+    const openCount = (code.match(/{/g) || []).length;
+    const closeCount = (code.match(/}/g) || []).length;
+    return { balanced: openCount === closeCount, openCount, closeCount };
+  }
+
+  /**
+   * Check balanced parentheses
+   */
+  private checkBalancedParens(code: string): { balanced: boolean; openCount: number; closeCount: number } {
+    const openCount = (code.match(/\(/g) || []).length;
+    const closeCount = (code.match(/\)/g) || []).length;
+    return { balanced: openCount === closeCount, openCount, closeCount };
+  }
+
+  /**
+   * Check balanced strings
+   */
+  private checkBalancedStrings(code: string): { balanced: boolean } {
+    const singleQuotes = (code.match(/'/g) || []).length;
+    const doubleQuotes = (code.match(/"/g) || []).length;
+    return { balanced: singleQuotes % 2 === 0 && doubleQuotes % 2 === 0 };
+  }
+
+  /**
+   * Get summary of all issues for debugging
+   */
+  getValidationSummary(result: ValidationResult): string {
+    const issues: string[] = [];
+
+    if (result.isTruncated) issues.push(`TRUNCATED: ${result.truncationReason}`);
+    if (result.syntaxErrors.length) issues.push(`SYNTAX: ${result.syntaxErrors.join('; ')}`);
+    if (result.hallucinations.length) issues.push(`HALLUCINATIONS: ${result.hallucinations.join('; ')}`);
+    if (result.missingFunctions.length) issues.push(`MISSING FUNCS: ${result.missingFunctions.join('; ')}`);
+    if (result.missingGameElements.length) issues.push(`MISSING ELEMENTS: ${result.missingGameElements.join('; ')}`);
+    if (result.logicErrors.length) issues.push(`LOGIC: ${result.logicErrors.join('; ')}`);
+    if (result.runtimeErrors.length) issues.push(`RUNTIME: ${result.runtimeErrors.join('; ')}`);
+
+    return issues.length ? issues.join(' | ') : 'VALID';
+  }
+
+  /**
+   * Get continuation prompt for truncated code
+   */
+  getContinuationPrompt(code: string, reason: string): string {
+    const lastChars = code.slice(-500);
+    return `Continue the game code from where it was cut off.
+
+The code was truncated because: ${reason}
+
+Last part of code:
+${lastChars}
+
+Continue and complete the game code. Include any incomplete functions or statements. Output ONLY the raw HTML code starting with <!DOCTYPE html>.`;
+  }
+
+  /**
+   * Get reflexion prompt for fixing errors
    */
   getReflexionPrompt(code: string, validation: ValidationResult): string {
     const lastChars = code.slice(-1000);
@@ -280,54 +434,28 @@ export class GameValidator {
     if (validation.isTruncated && validation.truncationReason) {
       issues.push(`TRUNCATION: ${validation.truncationReason}`);
     }
-
-    if (validation.syntaxErrors.length > 0) {
+    if (validation.syntaxErrors.length) {
       issues.push(`SYNTAX ERRORS: ${validation.syntaxErrors.join('; ')}`);
     }
-
-    if (validation.missingFunctions.length > 0) {
-      issues.push(`MISSING FUNCTIONS: ${validation.missingFunctions.join(', ')}`);
+    if (validation.hallucinations.length) {
+      issues.push(`HALLUCINATIONS: ${validation.hallucinations.join('; ')}`);
     }
-
-    if (validation.missingGameElements.length > 0) {
-      issues.push(`MISSING GAME ELEMENTS: ${validation.missingGameElements.join(', ')}`);
+    if (validation.missingFunctions.length) {
+      issues.push(`MISSING FUNCTIONS: ${validation.missingFunctions.join('; ')}`);
     }
-
-    if (validation.hallucinations.length > 0) {
-      issues.push(`HALLUCINATIONS/typos: ${validation.hallucinations.join('; ')}`);
+    if (validation.missingGameElements.length) {
+      issues.push(`MISSING ELEMENTS: ${validation.missingGameElements.join('; ')}`);
     }
 
     return `Fix the following issues in the game code:
 
-ISSUES DETECTED:
-${issues.map(i => `- ${i}`).join('\n')}
+Issues found:
+${issues.join('\n')}
 
-The last part of the code:
+Code to fix (last 1000 chars):
 ${lastChars}
 
-Please fix these issues and provide the corrected code. Ensure:
-1. All functions (preload, create, update) are complete
-2. Game has player sprite, platforms, and score system
-3. All braces, parentheses, and quotes are balanced
-4. Fix any typos in Phaser API calls
-
-Return ONLY the corrected code, not the full game.`;
-  }
-
-  /**
-   * Get a continuation prompt for completing truncated code
-   */
-  getContinuationPrompt(code: string, reason: string): string {
-    const lastChars = code.slice(-800);
-
-    return `Continue the game code from where it was cut off. The code was truncated because: ${reason}
-
-Start with the incomplete section and complete it properly. Make sure to close all braces, parentheses, and strings.
-
-The last part of the code so far:
-${lastChars}
-
-Continue the code, completing any unfinished functions, statements, or expressions. Return only the continuation, not the full code.`;
+Fix ONLY the issues above while keeping the rest of the code intact. Output ONLY the raw HTML code starting with <!DOCTYPE html>.`;
   }
 }
 

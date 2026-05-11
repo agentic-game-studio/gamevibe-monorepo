@@ -1,0 +1,7 @@
+1. Increased max_tokens from 8192 → 16384 in ai-service.ts:1127                                                                                              
+2. Condensed system prompt from 8.7KB → 1.8KB (79% reduction)
+  - Kept critical rules: forbidden patterns, arrow function syntax, mandatory features                                                                       
+  - Preserved audio synthesis, combo system, and particle effects requirements                                                                             
+3. Changed default temperature from 0.7 → 1.0 for more creative output
+
+Now with 16K max tokens output and a ~2KB system prompt, there's ~30K tokens available in the 32K context window for game code generation.

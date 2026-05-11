@@ -6,7 +6,7 @@ import { gamesRouter } from './routes/games.js';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
-const REQUEST_TIMEOUT = 180000; // 3 minute timeout (longer than AI's 2 min timeout)
+const REQUEST_TIMEOUT = 360000; // 6 minute timeout (longer than frontend's 5 min)
 
 // Request timeout middleware
 app.use((req, res, next) => {
@@ -28,7 +28,7 @@ app.use((req, res, next) => {
 
 // CORS - allow requests from the frontend
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3003'],
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3003', 'http://localhost:3010'],
   credentials: true,
 }));
 

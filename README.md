@@ -141,10 +141,10 @@ GameVibe uses **Ethereum blockchain** for permanent game ownership and provenanc
 
 | Tier | Price | Games/Month | AI Model |
 |------|-------|-------------|----------|
-| FREE | $0 | 3 | MiniMax-M2.5-Lightning |
-| STARTER | $9.99 | 50 | MiniMax-M2.5-Lightning |
-| PRO | $29.99 | 100 | MiniMax-M2.5-Lightning |
-| ENTERPRISE | $99.99 | Unlimited | MiniMax-M2.5-Lightning |
+| FREE | $0 | 3 | MiniMax-M2.7-Lightning |
+| STARTER | $9.99 | 50 | MiniMax-M2.7-Lightning |
+| PRO | $29.99 | 100 | MiniMax-M2.7-Lightning |
+| ENTERPRISE | $99.99 | Unlimited | MiniMax-M2.7-Lightning |
 
 ## Architecture
 

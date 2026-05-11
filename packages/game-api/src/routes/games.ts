@@ -43,18 +43,18 @@ router.post('/generate', async (req, res, next) => {
       throw new APIError('Invalid request: ' + parseResult.error.errors.map(e => e.message).join(', '), 400, 'VALIDATION_ERROR');
     }
 
-    const { description, type, playerCount, bypassCache, creatorWallet } = parseResult.data;
-    logger.info('Game generation requested', { description: description.slice(0, 50) + '...', type, hasWallet: !!creatorWallet });
+    const { description, type, playerCount, bypassCache, creatorWallet, useAI } = parseResult.data;
+    logger.info('Game generation requested', { description: description.slice(0, 50) + '...', type, useAI, hasWallet: !!creatorWallet });
 
     const genService = await getGeneratorService();
 
     // Set a timeout for game generation
-    const generationTimeout = 170000; // 110 seconds (slightly less than Express timeout)
+    const generationTimeout = 300000; // 5 minutes for complex AI generation
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Game generation timed out. Please try a simpler game description.')), generationTimeout);
     });
 
-    const gamePromise = genService.generateGame({ description, type, playerCount, bypassCache }, creatorWallet);
+    const gamePromise = genService.generateGame({ description, type, playerCount, bypassCache, useAI }, creatorWallet);
 
     const game = await Promise.race([gamePromise, timeoutPromise]);
 

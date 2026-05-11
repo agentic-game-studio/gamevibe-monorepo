@@ -50,7 +50,7 @@ export class AIModelSelectorService {
   private logger = new Logger('AIModelSelectorService');
   // Model definitions with cost and capability data
   public static readonly MODELS: Record<string, ModelCapabilities> = {
-    'MiniMax-M2.5-Lightning': {
+    'MiniMax-M2.7-Lightning': {
       maxTokens: 8192,
       costPerToken: 0.01, // Very cheap - significantly less than Claude/GPT
       avgLatencyMs: 800,
@@ -68,28 +68,28 @@ export class AIModelSelectorService {
   // Tier-based model access restrictions and budgets
   private static readonly TIER_CONSTRAINTS = {
     FREE: {
-      allowedModels: ['MiniMax-M2.5-Lightning'],
+      allowedModels: ['MiniMax-M2.7-Lightning'],
       maxCostPerRequestCents: 5,
       prioritizeSpeed: true,
-      defaultModel: 'MiniMax-M2.5-Lightning'
+      defaultModel: 'MiniMax-M2.7-Lightning'
     },
     STARTER: {
-      allowedModels: ['MiniMax-M2.5-Lightning'],
+      allowedModels: ['MiniMax-M2.7-Lightning'],
       maxCostPerRequestCents: 15,
       prioritizeSpeed: false,
-      defaultModel: 'MiniMax-M2.5-Lightning'
+      defaultModel: 'MiniMax-M2.7-Lightning'
     },
     PRO: {
-      allowedModels: ['MiniMax-M2.5-Lightning'],
+      allowedModels: ['MiniMax-M2.7-Lightning'],
       maxCostPerRequestCents: 30,
       prioritizeSpeed: false,
-      defaultModel: 'MiniMax-M2.5-Lightning'
+      defaultModel: 'MiniMax-M2.7-Lightning'
     },
     ENTERPRISE: {
-      allowedModels: ['MiniMax-M2.5-Lightning'],
+      allowedModels: ['MiniMax-M2.7-Lightning'],
       maxCostPerRequestCents: 100,
       prioritizeSpeed: false,
-      defaultModel: 'MiniMax-M2.5-Lightning'
+      defaultModel: 'MiniMax-M2.7-Lightning'
     }
   };
 
@@ -111,7 +111,7 @@ export class AIModelSelectorService {
     
     if (allAvailableModels.length === 0) {
       // Force fallback to Haiku if no other models available
-      return this.buildCreditBasedRecommendation(criteria, 'MiniMax-M2.5-Lightning', estimatedTokens, 'No credits available for premium models');
+      return this.buildCreditBasedRecommendation(criteria, 'MiniMax-M2.7-Lightning', estimatedTokens, 'No credits available for premium models');
     }
 
     // Score each available model
@@ -147,7 +147,7 @@ export class AIModelSelectorService {
 
     if (modelScores.length === 0) {
       // Ultimate fallback to Haiku
-      return this.buildCreditBasedRecommendation(criteria, 'MiniMax-M2.5-Lightning', estimatedTokens, 'No suitable models available');
+      return this.buildCreditBasedRecommendation(criteria, 'MiniMax-M2.7-Lightning', estimatedTokens, 'No suitable models available');
     }
 
     const bestRecommendation = modelScores[0].recommendation;
@@ -198,7 +198,7 @@ export class AIModelSelectorService {
 
     // Process simple requests with cheapest model
     if (simpleRequests.length > 0) {
-      const cheapModel = 'MiniMax-M2.5-Lightning';
+      const cheapModel = 'MiniMax-M2.7-Lightning';
       const modelCapabilities = AIModelSelectorService.MODELS[cheapModel];
       
       for (const { req, index } of simpleRequests) {
@@ -558,7 +558,7 @@ export class AIModelSelectorService {
       reasoningParts.push(reason);
     }
 
-    if (modelName === 'MiniMax-M2.5-Lightning') {
+    if (modelName === 'MiniMax-M2.7-Lightning') {
       reasoningParts.push('Using free tier model');
     }
 
@@ -585,7 +585,7 @@ export class AIModelSelectorService {
     
     // Always return Haiku as fallback if no other models available
     if (availableModels.availableModels.length === 0) {
-      return 'MiniMax-M2.5-Lightning';
+      return 'MiniMax-M2.7-Lightning';
     }
 
     // Find suitable models for the complexity
@@ -596,7 +596,7 @@ export class AIModelSelectorService {
 
     // Return cheapest suitable model, or Haiku if none found
     if (suitableModels.length === 0) {
-      return 'MiniMax-M2.5-Lightning';
+      return 'MiniMax-M2.7-Lightning';
     }
 
     // Return the cheapest suitable model

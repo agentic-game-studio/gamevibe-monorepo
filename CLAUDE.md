@@ -156,7 +156,7 @@ Monorepo with pnpm workspaces:
 - **Package Manager**: pnpm 10+ (monorepo)
 - **Discord**: Discord.js v14 + Discord Embedded App SDK
 - **Game Engine**: Phaser 3.70
-- **AI/LLM**: MiniMax (primary) - Uses MiniMax-M2.5-Lightning model for cost-effective game generation
+- **AI/LLM**: MiniMax (primary) - Uses MiniMax-M2.7-Lightning model for cost-effective game generation
 - **Asset Generation**: DALL-E 3, Sharp
 - **Blockchain**: Ethereum + Solidity (smart contracts for game ownership)
 - **Storage**: IPFS (Pinata) for game code/assets
@@ -347,7 +347,7 @@ ENABLE_PROGRESSIVE_ENHANCEMENT=true
 
 # Credit System
 ENABLE_CREDIT_SYSTEM=true
-DEFAULT_FREE_MODEL=MiniMax-M2.5-Lightning
+DEFAULT_FREE_MODEL=MiniMax-M2.7-Lightning
 ENFORCE_TIER_LIMITS=true
 CREDIT_ROLLOVER_ENABLED=true
 
@@ -360,12 +360,12 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 
 | Tier | Price | Games/Month | AI Model | Monthly Credits |
 |------|-------|-------------|----------|-----------------|
-| FREE | $0 | 3 | MiniMax-M2.5-Lightning | Unlimited |
-| STARTER | $9.99 | 50 | MiniMax-M2.5-Lightning | $5 |
-| PRO | $29.99 | 100 | MiniMax-M2.5-Lightning | $20 |
-| ENTERPRISE | $99.99 | Unlimited | MiniMax-M2.5-Lightning | $100 |
+| FREE | $0 | 3 | MiniMax-M2.7-Lightning | Unlimited |
+| STARTER | $9.99 | 50 | MiniMax-M2.7-Lightning | $5 |
+| PRO | $29.99 | 100 | MiniMax-M2.7-Lightning | $20 |
+| ENTERPRISE | $99.99 | Unlimited | MiniMax-M2.7-Lightning | $100 |
 
-Note: All tiers use MiniMax-M2.5-Lightning for significant cost savings over Claude/GPT.
+Note: All tiers use MiniMax-M2.7-Lightning for significant cost savings over Claude/GPT.
 
 ## Discord Activities Setup
 

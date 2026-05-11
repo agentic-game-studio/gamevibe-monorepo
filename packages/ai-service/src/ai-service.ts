@@ -9,6 +9,7 @@ import {
 import { GamePromptBuilder } from './prompts/index.js';
 import { GamePostProcessor } from './game-post-processor.js';
 import { GameValidator } from './game-validator.js';
+import { GameRuntimeTester } from './game-runtime-tester.js';
 
 export interface AIServiceConfig {
   minimaxApiKey: string;
@@ -18,7 +19,7 @@ export interface AIServiceConfig {
   };
 }
 
-const DEFAULT_MODEL = 'MiniMax-M2.5-Lightning';
+const DEFAULT_MODEL = 'MiniMax-M2.7-Lightning';
 const TIMEOUT_MS = 300000; // 5 minute timeout for complex game generation
 
 // Smart fallback selection based on user description
@@ -998,6 +999,7 @@ export class AIService {
   private promptBuilder: GamePromptBuilder;
   private postProcessor: GamePostProcessor;
   private validator: GameValidator;
+  private runtimeTester: GameRuntimeTester;
   private maxRetries = 2; // Max continuation attempts
 
   constructor(config: AIServiceConfig) {
@@ -1006,6 +1008,7 @@ export class AIService {
     this.promptBuilder = new GamePromptBuilder();
     this.postProcessor = new GamePostProcessor();
     this.validator = new GameValidator();
+    this.runtimeTester = new GameRuntimeTester();
     this.queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 3 });
   }
 
@@ -1060,13 +1063,14 @@ export class AIService {
     console.log(`[AI] Request: "${description.slice(0,50)}..."`);
     console.log(`[AI] Options: useAIBypass=${useAIBypass}, useOnlyFallback=${useOnlyFallback}, spec.useAI=${spec.useAI}`);
 
-    // OPTION 1: Bypass fallback, use AI only (slow but custom)
+    // OPTION 1: Bypass fallback, use AI only (fast single generation + post-processor)
     if (useAIBypass) {
-      console.log('[AI] BYPASS MODE: Using AI only (may take 1-2 minutes)...');
+      console.log('[AI] BYPASS MODE: Using AI with fast generation...');
       try {
         const prompt = this.promptBuilder.buildGameGenerationPrompt(spec, template);
         console.log('[AI] Prompt built, calling MiniMax...');
-        const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 16000 });
+        // Single fast generation - post-processor handles all fixes
+        const response = await this.generate({ prompt, model: DEFAULT_MODEL, temperature: 1.0, maxTokens: 12000 });
         console.log('[AI] MiniMax response received, content length:', response.content?.length || 0);
         console.log('[AI] Response preview:', response.content?.substring(0, 100) || 'EMPTY');
 
@@ -1076,26 +1080,58 @@ export class AIService {
           let gameCode = response.content;
           let validation = this.validator.validate(gameCode);
 
-          // If validation fails, try to fix via reflexion loop
+          // Log validation status but rely on post-processor to fix issues
           if (!validation.isValid) {
-            console.log(`[AI] Validation failed: ${validation.isTruncated ? validation.truncationReason : validation.syntaxErrors.join('; ')}`);
-            console.log(`[AI] Attempting reflexion loop (self-correction)...`);
-            const fixedCode = await this.fixWithReflexion(gameCode, validation, 0);
-            if (fixedCode) {
-              gameCode = fixedCode;
-              validation = this.validator.validate(gameCode);
-              console.log(`[AI] After reflexion: valid=${validation.isValid}`);
-            }
+            const errorParts: string[] = [];
+            if (validation.isTruncated) errorParts.push(validation.truncationReason || 'truncated');
+            if (validation.syntaxErrors.length) errorParts.push(validation.syntaxErrors.join('; '));
+            if (validation.hallucinations.length) errorParts.push(`hallucinations: ${validation.hallucinations.join('; ')}`);
+            if (validation.missingFunctions.length) errorParts.push(`missing: ${validation.missingFunctions.join('; ')}`);
+            console.log(`[AI] Validation issues: ${errorParts.join(' | ')} (post-processor will fix)`);
           }
 
-          // Apply post-processing and return
-          if (gameCode && validation.isValid) {
+          // Apply post-processing (auto-fix for all hallucinations and common bugs)
+          let finalCode = gameCode ? this.postProcessor.enhance(gameCode) : '';
+
+          // Run runtime test on the processed code
+          if (finalCode) {
+            const runtimeResult = await this.runtimeTester.testCode(finalCode);
+            console.log(`[AI] Runtime test: success=${runtimeResult.success}, time=${runtimeResult.executionTime}ms`);
+
+            // If runtime test fails OR there are critical validation errors, use fallback
+            const hasCriticalValidationErrors =
+              validation.isTruncated ||
+              validation.syntaxErrors.length > 0 ||
+              validation.missingFunctions.length > 0 ||
+              validation.hallucinations.length > 3; // Multiple hallucinations = likely broken
+
+            if (!runtimeResult.success || hasCriticalValidationErrors) {
+              const errorMsg = !runtimeResult.success
+                ? runtimeResult.errors.join('; ')
+                : `Validation errors: ${validation.isTruncated ? 'truncated' : ''} ${validation.syntaxErrors.join('; ')} ${validation.hallucinations.slice(0,3).join('; ')}`;
+              console.log(`[AI] Critical errors detected: ${errorMsg}`);
+
+              // Try to fix with validator's auto-fix
+              const fixResult = this.validator.fix(finalCode);
+              if (fixResult.fixed && fixResult.fixes.length > 0) {
+                console.log(`[AI] Auto-fix applied: ${fixResult.fixes.join('; ')}`);
+                finalCode = fixResult.code;
+
+                // Re-test after fix
+                const retryResult = await this.runtimeTester.testCode(finalCode);
+                if (retryResult.success) {
+                  console.log('[AI] Runtime test PASSED after auto-fix!');
+                  return finalCode;
+                }
+              }
+
+              // Auto-fix didn't work - use fallback
+              console.log('[AI] Code has critical errors - falling back to template');
+              return this.getFallbackWithTest(spec, template, useOnlyFallback);
+            }
+
             console.log('[AI] Bypass: Custom game generated!');
-            return this.postProcessor.enhance(gameCode);
-          } else if (gameCode) {
-            // If still invalid after reflexion, still try post-processor as safety net
-            console.log('[AI] Warning: code still has issues after reflexion, using post-processor');
-            return this.postProcessor.enhance(gameCode);
+            return finalCode;
           }
         } else {
           // Response doesn't contain Phaser.Game - falling back
@@ -1108,12 +1144,33 @@ export class AIService {
       // Fall through to fallback if AI fails
     }
 
-    // DEFAULT: Use smart fallback (instant, reliable)
-    let fallback = selectBestFallback(description);
+    // DEFAULT: Use smart fallback with testing
+    return this.getFallbackWithTest(spec, template, useOnlyFallback);
+  }
+
+  /**
+   * Get fallback template with runtime testing
+   */
+  private async getFallbackWithTest(spec: any, template: any, useOnlyFallback: boolean): Promise<string> {
+    let fallback = selectBestFallback(spec.description || spec.originalDescription || '');
     console.log(`[AI] Using smart fallback: ${fallback.substring(20, 80)}...`);
 
     // Apply post-processing to fallback
     fallback = this.postProcessor.enhance(fallback);
+
+    // Test fallback before returning
+    const runtimeResult = await this.runtimeTester.testCode(fallback);
+    if (!runtimeResult.success) {
+      console.log(`[AI] WARNING: Fallback has runtime errors: ${runtimeResult.errors.join('; ')}`);
+      // Try to fix
+      const fixResult = this.validator.fix(fallback);
+      if (fixResult.fixed) {
+        fallback = fixResult.code;
+        console.log(`[AI] Fallback auto-fixed: ${fixResult.fixes.join('; ')}`);
+      }
+    } else {
+      console.log(`[AI] Fallback passed runtime test!`);
+    }
 
     // Try AI enhancement in background (won't block response)
     if (!useOnlyFallback) {
@@ -1263,7 +1320,8 @@ export class AIService {
       model: options.model || DEFAULT_MODEL,
       max_tokens: options.maxTokens || 16384,
       temperature: options.temperature || 1.0,
-      messages: [{ role: 'user', content: options.prompt }]
+      messages: [{ role: 'user', content: options.prompt }],
+      stream: false // MiniMax may not support streaming yet
     });
 
     let content = '';
@@ -1274,6 +1332,81 @@ export class AIService {
     }
 
     return { content, model: options.model || DEFAULT_MODEL, usage: data.usage ? { promptTokens: data.usage.input_tokens, completionTokens: data.usage.output_tokens, totalTokens: data.usage.input_tokens + data.usage.output_tokens } : undefined };
+  }
+
+  /**
+   * Generate with automatic continuation on truncation
+   * This is the key streaming alternative - detect and fix immediately
+   */
+  private async generateWithContinuation(options: GenerateOptions, maxRetries = 2): Promise<AIResponse> {
+    let attempt = 0;
+    let lastContent = '';
+
+    while (attempt <= maxRetries) {
+      // Generate with INCREASED tokens each retry to reduce truncation
+      const tokenMultiplier = 1 + attempt; // 1x, 2x, 3x tokens
+      const adjustedOptions = {
+        ...options,
+        maxTokens: Math.min((options.maxTokens || 16000) * tokenMultiplier, 32000)
+      };
+
+      console.log(`[AI] Generation attempt ${attempt + 1}, maxTokens: ${adjustedOptions.maxTokens}`);
+      const response = await this.callAPI(adjustedOptions);
+      lastContent = response.content;
+
+      // Check for truncation immediately
+      const validation = this.validator.validate(lastContent);
+
+      if (!validation.isTruncated && validation.hallucinations.length === 0) {
+        console.log(`[AI] Generation successful, no truncation detected`);
+        return response;
+      }
+
+      // Truncation detected - need continuation
+      const issues = validation.isTruncated ? (validation.truncationReason || 'truncated') : validation.hallucinations.join('; ');
+      console.log(`[AI] Truncation detected: ${issues}`);
+
+      if (attempt >= maxRetries) {
+        console.log(`[AI] Max continuation attempts reached`);
+        break;
+      }
+
+      // Request continuation from AI
+      console.log(`[AI] Requesting continuation...`);
+      const continuationPrompt = this.buildContinuationPrompt(lastContent, issues);
+      const continueResponse = await this.callAPI({
+        prompt: continuationPrompt,
+        model: options.model || DEFAULT_MODEL,
+        maxTokens: 8000,
+        temperature: options.temperature || 1.0
+      });
+
+      // Combine original + continuation
+      lastContent = lastContent + '\n' + continueResponse.content;
+      attempt++;
+    }
+
+    return { content: lastContent, model: options.model || DEFAULT_MODEL };
+  }
+
+  /**
+   * Build prompt for continuation
+   */
+  private buildContinuationPrompt(code: string, issue: string): string {
+    const lastPart = code.slice(-1500);
+    return `Continue and complete the game code that was cut off or has errors.
+
+The code had these issues: ${issue}
+
+Last part of the incomplete code:
+${lastPart}
+
+Continue from where it was cut off and complete the game. Include:
+- Any incomplete functions or statements
+- The closing braces and brackets
+- Make sure the game is fully functional
+
+Output ONLY the raw HTML code starting with <!DOCTYPE html>.`;
   }
 
   private getCacheKey(options: GenerateOptions | AnalyzeOptions): string {

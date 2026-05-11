@@ -154,6 +154,56 @@ function repairGeneratedCode(code: string): string {
   // Fix: missing closing brace in arrow function - )} -> ) })
   repaired = repaired.replace(/\)\s*}$/g, ') });');
 
+  // NEW: Fix gameState.gameState.gameState - triple nesting
+  // Apply multiple times to catch nested issues
+  for (let i = 0; i < 5; i++) {
+    const before = repaired;
+    repaired = repaired.replace(/gameState\.gameState\./g, 'gameState.');
+    if (repaired === before) break;
+  }
+
+  // Fix: player.s,0); - truncated from player.setVelocity(0,0) or similar
+  repaired = repaired.replace(/player\.s,0\);/g, 'player.setVelocity(0, 0);');
+
+  // Fix: player.s, - truncated from player.setVelocity
+  repaired = repaired.replace(/player\.s,\s*0\)/g, 'player.setVelocity(0, 0)');
+
+  // Fix: this.adtext -> this.add.text typo
+  repaired = repaired.replace(/this\.adtext\(/g, 'this.add.text(');
+
+  // Fix: orms[ -> platforms[ (array access)
+  repaired = repaired.replace(/orms\[/g, 'platforms[');
+
+  // Fix: orms. -> platforms. (any property access)
+  repaired = repaired.replace(/\borgs\./g, 'platforms.');
+
+  // Fix: var orms = -> var platforms =
+  repaired = repaired.replace(/var\s+orms\s*=/g, 'var platforms =');
+
+  // Fix: orms.clear - already handled but be more aggressive
+  repaired = repaired.replace(/orms\.clear/g, 'platforms.clear');
+
+  // Fix: player.s,0 - incomplete setVelocity
+  repaired = repaired.replace(/player\.s,0(?!\))/g, 'player.setVelocity(0, 0)');
+
+  // Fix: platfplatfplatforms - MORE aggressive (multiple times)
+  for (let i = 0; i < 5; i++) {
+    const before = repaired;
+    repaired = repaired.replace(/platfplatf(platforms?)/g, '$1');
+    repaired = repaired.replace(/platfplatforms/g, 'platforms');
+    if (repaired === before) break;
+  }
+
+  // Fix: platfplatfplatforms.clear(true,true); - this specific pattern
+  repaired = repaired.replace(/platfplatfplatforms\.clear/g, 'platforms.clear');
+  repaired = repaired.replace(/platfplatforms\.clear/g, 'platforms.clear');
+
+  // Fix: platfplatforms.create -> platforms.create
+  repaired = repaired.replace(/platfplatforms\.create/g, 'platforms.create');
+
+  // Fix: Phaser.Math.Between(5; - truncated syntax
+  repaired = repaired.replace(/Between\(([^)]+);/g, 'Between($1,');
+
   return repaired;
 }
 

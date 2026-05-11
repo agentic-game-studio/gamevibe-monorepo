@@ -119,6 +119,139 @@ export class GamePostProcessor {
     // Fix duplicate platform prefixes: platfplatfplatforms -> platforms
     fixed = fixed.replace(/platfplatf(platforms?)/g, '$1');
 
+    // Fix: gameState.gameState.gameState - triple nesting (apply multiple times)
+    for (let i = 0; i < 5; i++) {
+      const before = fixed;
+      fixed = fixed.replace(/gameState\.gameState\./g, 'gameState.');
+      if (fixed === before) break;
+    }
+
+    // Fix: player.s,0); - truncated from player.setVelocity(0,0)
+    fixed = fixed.replace(/player\.s,0\);/g, 'player.setVelocity(0, 0);');
+
+    // Fix: player.s,0 - incomplete setVelocity
+    fixed = fixed.replace(/player\.s,0(?!\))/g, 'player.setVelocity(0, 0)');
+
+    // Fix: orms[ -> platforms[ (array access)
+    fixed = fixed.replace(/orms\[/g, 'platforms[');
+
+    // Fix: orms. -> platforms. (any property access)
+    fixed = fixed.replace(/\borgs\./g, 'platforms.');
+
+    // Fix: var orms = -> var platforms =
+    fixed = fixed.replace(/var\s+orms\s*=/g, 'var platforms =');
+
+    // Fix: orms.clear - already handled but be more aggressive
+    fixed = fixed.replace(/orms\.clear/g, 'platforms.clear');
+
+    // Fix: platfplatfplatforms - MORE aggressive (multiple times)
+    for (let i = 0; i < 5; i++) {
+      const before = fixed;
+      fixed = fixed.replace(/platfplatf(platforms?)/g, '$1');
+      fixed = fixed.replace(/platfplatforms/g, 'platforms');
+      if (fixed === before) break;
+    }
+
+    // Fix: platfplatfplatforms.clear(true,true); - this specific pattern
+    fixed = fixed.replace(/platfplatfplatforms\.clear/g, 'platforms.clear');
+    fixed = fixed.replace(/platfplatforms\.clear/g, 'platforms.clear');
+
+    // Fix: platfplatforms.create -> platforms.create
+    fixed = fixed.replace(/platfplatforms\.create/g, 'platforms.create');
+
+    // Fix: Phaser.Math.Between(5; - truncated syntax
+    fixed = fixed.replace(/Between\(([^)]+);/g, 'Between($1,');
+
+    // NEW: Fix comboCount truncation -> mboCount
+    fixed = fixed.replace(/\bmboCount\b/g, 'comboCount');
+
+    // NEW: Fix fontSize truncation -> fpx
+    fixed = fixed.replace(/\{ fpx'/g, "{ fontSize:'20px',fill:'#ffffff'");
+    fixed = fixed.replace(/fpx'\}/g, "fontSize:'20px'}");
+
+    // NEW: Fix btn truncation -> btn
+    fixed = fixed.replace(/\bb\.on\(/g, 'btn.on(');
+
+    // NEW: Fix incomplete text object { fpx'
+    fixed = fixed.replace(/\{ fpx[^']*'/g, "{ fontSize:'20px',fill:'#ffffff'");
+
+    // NEW: Fix setScrollFn -> setScrollFactor
+    fixed = fixed.replace(/\.setScrollFn/g, '.setScrollFactor');
+
+    // NEW: Fix destroy();this.cameras.main.shake pattern (truncated)
+    fixed = fixed.replace(/destroy\(\);this\.cameras\.main\.shake\(\d+,\d+\.\d+\);/g, 'destroy();');
+
+    // NEW: Fix duplicate audio functions (keep class, remove standalone)
+    // Remove duplicate function definitions if class exists
+    if (/class\s+AudioManager/i.test(fixed)) {
+      fixed = fixed.replace(/var audioCtx = null;[\s\S]*?function powerUpSound\(\) \{[\s\S]*?\}\s*/g, '');
+    }
+
+    // NEW: Fix truncated ternary expression: (this.isBossLevel (BOSS)' : '')
+    // This is truncated from (this.isBossLevel ? 'BOSS' : '')
+    fixed = fixed.replace(/\(this\.isBossLevel\s*\(\s*BOSS\s*\)\s*'?\s*:\s*'\)/g, "(this.isBossLevel ? 'BOSS' : '')");
+
+    // NEW: Fix truncated boss level check: isBossLevel (BOSS'
+    fixed = fixed.replace(/isBossLevel\s*\(\s*BOSS\s*\)/g, "isBossLevel === 'BOSS'");
+
+    // NEW: Fix incomplete ternary with BOSS
+    fixed = fixed.replace(/\(\s*this\.isBossLevel\s*\(\s*BOSS\s*\)\s*'?\s*:\s*''\s*\)/g, "(this.isBossLevel === 'BOSS' ? 'BOSS' : '')");
+
+    // NEW: Fix broken camera shake patterns that break code
+    // Pattern: .destroy();this.cameras.main.shake(30,0.002) without proper semicolons
+    fixed = fixed.replace(/\.destroy\(\);this\.cameras\.main\.shake\(\d+,\d+\.\d+\)(?!\s*;)/g, '.destroy();');
+
+    // NEW: Fix .destroy();this.cameras.main.shake anywhere it breaks code
+    // This pattern appears to be malformed - remove it entirely
+    fixed = fixed.replace(/\.destroy\(\);this\.cameras\.main\.shake\(\d+,/g, '.destroy();');
+
+    // NEW: Fix multiple camera shakes that create invalid syntax
+    // Remove shake from lines where it breaks the code structure
+    fixed = fixed.replace(/(\.destroy\(\));[\s\n]*this\.cameras\.main\.shake\([^)]+\);/g, '$1;');
+
+    // NEW: Fix level text syntax errors - truncated ternary in level display
+    fixed = fixed.replace(/'LEVEL: '\s*\+\s*this\.gameState\.level\s*\+\s*\([^)]*isBossLevel[^)]*\)/g, "'LEVEL: ' + this.gameState.level + (this.isBossLevel ? ' BOSS' : '')");
+
+    // NEW: Fix any remaining incomplete camera shakes at end of statements
+    fixed = fixed.replace(/this\.cameras\.main\.shake\(\d+,\d+\.\d+\);[\s]*this\.cameras\.main\.shake/g, 'this.cameras.main.shake');
+
+    // NEW: Fix broken camera shake with extra numbers: shake(30,0.002)0.005)
+    fixed = fixed.replace(/shake\(\d+,\d+\.\d+\)\d+\.\d+\)/g, 'shake(30,0.002)');
+
+    // NEW: Fix dxt = (should be depthText =)
+    fixed = fixed.replace(/dxt\s*=\s*this\.add\.text/g, 'depthText = this.add.text');
+
+    // NEW: Fix gaState -> gameState
+    fixed = fixed.replace(/gaState\./g, 'gameState.');
+
+    // NEW: Fix mismatched braces in onComplete callbacks
+    fixed = fixed.replace(/onComplete:\(\)=>\{ p\.destroy\(\)\}\);/g, 'onComplete:() => { p.destroy(); }}');
+
+    // NEW: Fix double semicolons
+    fixed = fixed.replace(/;;/g, ';');
+
+    // NEW: Fix duplicate variable declarations (e.g., var audioCtx and let audioCtx)
+    // Keep only the first declaration and remove duplicates
+    const varDeclarations = new Set<string>();
+    fixed = fixed.replace(/(var|let|const)\s+(\w+)\s*=/g, (match, keyword, name) => {
+      if (name === 'audioCtx' || name === 'gameState' || name === 'scoreText') {
+        if (varDeclarations.has(name)) {
+          return ''; // Remove duplicate
+        }
+        varDeclarations.add(name);
+      }
+      return match;
+    });
+
+    // NEW: Fix scene array - use string keys instead of class references
+    // Problem: class references before definition causes "Cannot access before initialization"
+    // Fix: Change [TitleScene, GameScene] to ['TitleScene', 'GameScene']
+    // This works because each class has { key: 'SceneName' }
+    fixed = fixed.replace(/scene:\s*\[([A-Z][a-zA-Z]+(?:,\s*[A-Z][a-zA-Z]+)*)\]/g, (match, scenes) => {
+      const sceneList = scenes.split(',').map((s: string) => s.trim()).map((s: string) => `'${s}'`);
+      return `scene: [${sceneList.join(', ')}]`;
+    });
+
     return fixed;
   }
 
@@ -249,24 +382,14 @@ function powerUpSound() {
       }
     }
 
-    // Add particle effects to any destroy/disable call
-    if (!/for.*pi.*add\.circle/i.test(code)) {
-      // Look for any .destroy() and add generic particles
-      if (/\.destroy\(\)/i.test(code)) {
-        code = code.replace(
-          /\.destroy\(\)/gi,
-          '.destroy();this.cameras.main.shake(30,0.002)'
-        );
-      }
-
-      // Add camera shake for game feel
-      if (!/cameras\.main\.shake/i.test(code)) {
-        // Add shake to any damage/collision
-        code = code.replace(
-          /(hp|lives|health).*-=/gi,
-          '$1-=;this.cameras.main.shake(50,0.003)'
-        );
-      }
+    // Add camera shake ONLY if not already present - and safely
+    // Don't add after destroy() as it can break syntax
+    if (!/cameras\.main\.shake/i.test(code)) {
+      // Add shake to damage/collision - only if there's a proper statement ending
+      code = code.replace(
+        /(hp|lives|health)\s*-=\s*(\d+);/gi,
+        '$1-=$2; this.cameras.main.shake(50,0.003);'
+      );
     }
 
     return code;
