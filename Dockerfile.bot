@@ -1,5 +1,5 @@
 # GameVibe Bot Dockerfile
-FROM node:20-alpine AS base
+FROM node:25-alpine AS base
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -31,7 +31,7 @@ RUN pnpm --filter @gamevibe/game-engine build
 RUN pnpm --filter @gamevibe/bot build
 
 # Production stage
-FROM node:20-alpine AS production
+FROM node:25-alpine AS production
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
